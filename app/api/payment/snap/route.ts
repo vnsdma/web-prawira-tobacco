@@ -1,15 +1,9 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server";
+import { snap } from "@/lib/midtrans"; // Import from your new helper
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
-    const { order_id, amount, customer } = await request.json()
-
-    // Midtrans configuration
-    const serverKey = process.env.MIDTRANS_SERVER_KEY
-    const isProduction = process.env.MIDTRANS_IS_PRODUCTION === "true"
-    const baseUrl = isProduction
-      ? "https://app.midtrans.com/snap/v1/transactions"
-      : "https://app.sandbox.midtrans.com/snap/v1/transactions"
+    const { order_id, amount, customer } = await request.json();
 
     const parameter = {
       transaction_details: {
@@ -26,26 +20,18 @@ export async function POST(request: NextRequest) {
           address: customer.address,
         },
       },
-    }
+    };
 
-    const response = await fetch(baseUrl, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        Authorization: `Basic ${Buffer.from(serverKey + ":").toString("base64")}`,
-      },
-      body: JSON.stringify(parameter),
-    })
-
-    const result = await response.json()
+    // Use the library to create the transaction
+    const transaction = await snap.createTransaction(parameter);
 
     return NextResponse.json({
-      token: result.token,
-      redirect_url: result.redirect_url,
-    })
+      token: transaction.token,
+      redirect_url: transaction.redirect_url,
+    });
+
   } catch (error) {
-    console.error("Midtrans payment error:", error)
-    return NextResponse.json({ error: "Failed to create payment" }, { status: 500 })
+    console.error("Midtrans payment error:", error);
+    return NextResponse.json({ error: "Failed to create payment" }, { status: 500 });
   }
 }

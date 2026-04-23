@@ -3,53 +3,42 @@ import { createClient } from "@supabase/supabase-js"
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
-// 1. Definisikan Package IDs
+// Mapping sederhana, kita fokus ke id.qris
 const PACKAGE_IDS: Record<string, string> = {
-  // QRIS Universal (Sesuai request Anda menggunakan package ID GoPay Merchant)
-  qris: "com.gojek.gopaymerchant", 
-  
-  // E-Wallet Spesifik
-  dana: "id.dana",
-  ovo: "id.ovo",
-  gopay: "id.gopay",
-  shopeepay: "id.shopeepay",
-  linkaja: "id.linkaja",
+  qris: "id.qris" 
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { amount, order_id, ewalletType } = body 
-    // ewalletType akan berisi: 'qris', 'dana', 'ovo', dll.
+    const { amount, order_id } = body 
+    // Kita tidak butuh ewalletType spesifik lagi dari frontend, kita set default 'qris'
 
+    // 1. Validasi Input Awal
     if (!order_id) {
         return NextResponse.json({ error: "Missing order_id" }, { status: 400 })
     }
 
+    // Config
     const licenseKey = process.env.CASHIFY_LICENSE_KEY
     const qrId = process.env.CASHIFY_QR_ID
     const baseUrl = "https://cashify.my.id/api"
 
-    // 2. Tentukan Package ID berdasarkan pilihan user
-    // Jika tidak ketemu, default ke QRIS
-    const selectedPackageId = PACKAGE_IDS[ewalletType] || PACKAGE_IDS['qris']
-
-    // 3. Tentukan paymentMethod untuk payload Cashify
-    // Jika tipe 'qris', kirim 'qris'. Jika lainnya, kirim 'ewallet'.
-    const cashifyPaymentMethod = ewalletType === 'qris' ? 'qris' : 'ewallet';
+    // Default ke QRIS
+    const selectedPackageId = PACKAGE_IDS['qris']
 
     const payload = {
       qr_id: qrId, 
       amount: Math.round(amount),
       useUniqueCode: true,
-      packageIds: [selectedPackageId], // Package ID dinamis sesuai pilihan
+      packageIds: ["com.gojek.gopaymerchant"], // Selalu id.qris
       expiredInMinutes: 15,
       qrType: "dynamic",
-      paymentMethod: cashifyPaymentMethod, // 'qris' atau 'ewallet'
+      paymentMethod: "qris",
       useQris: true
     }
 
-    console.log(`🚀 [${order_id}] Requesting Cashify (${ewalletType}):`, JSON.stringify(payload))
+    console.log(`🚀 [${order_id}] Requesting Cashify QRIS...`)
 
     const response = await fetch(`${baseUrl}/generate/v2/qris`, {
       method: "POST",
@@ -61,7 +50,8 @@ export async function POST(request: NextRequest) {
     })
     
     const result = await response.json()
-
+    
+    // ... (Logika Error Handling sama seperti sebelumnya) ...
     if (!response.ok) {
       return NextResponse.json({ error: result.message || "Failed" }, { status: response.status })
     }
@@ -70,8 +60,9 @@ export async function POST(request: NextRequest) {
     const sourceData = result.data || result; 
     const trxId = sourceData.transactionId || sourceData.id || result.transactionId;
 
-    // Update Transaction ID ke Supabase
+    // ... (Logika Update Supabase sama seperti sebelumnya) ...
     if (trxId) {
+        // Cek apakah order_id angka atau string
         const isNumericId = !isNaN(Number(order_id));
         let query = supabase.from('orders').update({ transaction_id: trxId });
 
@@ -83,10 +74,11 @@ export async function POST(request: NextRequest) {
         await query;
     }
 
+    // Return Data
     const finalData = {
         transactionId: trxId,
         totalAmount: sourceData.totalAmount || sourceData.amount, 
-        qr_string: sourceData.qr_string || sourceData.qr_content,
+        qr_string: sourceData.qr_string || sourceData.qr_content || sourceData.qrString,
         expiration: sourceData.expiredInMinutes || 15,
         status: "pending"
     }

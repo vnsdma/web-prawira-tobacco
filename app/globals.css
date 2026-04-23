@@ -2,93 +2,622 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap');
+
+/* ─── DESIGN TOKENS ─────────────────────────────────────────── */
+:root {
+  --accent:          #c8a96e;
+  --accent-hover:    #b8965c;
+  --accent-muted:    rgba(200, 169, 110, 0.12);
+  --accent-border:   rgba(200, 169, 110, 0.25);
+  --accent-text:     #1a1410;
+
+  --bg:              #f7f5f2;
+  --bg-card:         #ffffff;
+  --bg-raised:       #f0ebe3;
+  --bg-input:        #eee9e1;
+  --bg-banner:       #2c2620;
+
+  --border:          #e8e3db;
+  --border-strong:   #ddd8cf;
+
+  --text-primary:    #1a1714;
+  --text-secondary:  #6b5f52;
+  --text-muted:      #9a9088;
+  --text-inverse:    #f0ece5;
+
+  --nav-bg:          #ffffff;
+  --nav-border:      #e8e3db;
+  --nav-icon:        #b0a898;
+  --nav-active:      #c8a96e;
+
+  --r-sm:   8px;
+  --r-md:   12px;
+  --r-lg:   16px;
+  --r-xl:   20px;
+  --r-full: 999px;
+
+  --font-display: 'Syne', sans-serif;
+  --font-body:    'DM Sans', sans-serif;
+
+  --space-xs:  4px;
+  --space-sm:  8px;
+  --space-md:  12px;
+  --space-lg:  16px;
+  --space-xl:  24px;
+  --space-2xl: 32px;
+
+  --ease:     cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --duration: 200ms;
+
+  --sidebar-w:    220px;
+  --sidebar-w-lg: 260px;
+}
+
+/* ─── DARK MODE ──────────────────────────────────────────────── */
+.dark {
+  --bg:              #131210;
+  --bg-card:         #1a1814;
+  --bg-raised:       #201e18;
+  --bg-input:        #1e1c18;
+  --bg-banner:       #1e1b14;
+  --border:          #252318;
+  --border-strong:   #2e2b24;
+  --text-primary:    #f0ece5;
+  --text-secondary:  #8a8070;
+  --text-muted:      #5a5448;
+  --text-inverse:    #1a1714;
+  --nav-bg:          #0e0d0a;
+  --nav-border:      #1e1c16;
+  --nav-icon:        #4a4840;
+  --nav-active:      #c8a96e;
+}
+
+/* ─── BASE RESET ─────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
 body {
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.6;
+  background: var(--bg);
+  color: var(--text-primary);
+  transition: background var(--duration) var(--ease), color var(--duration) var(--ease);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+::-webkit-scrollbar { width: 0; height: 0; }
+
+/* ─── APP SHELL ──────────────────────────────────────────────── */
+/*
+  Mobile  → single column, full viewport width
+  Desktop → sidebar fixed width | main takes ALL remaining space
+  No max-width on the shell — let it fill the browser.
+*/
+.app-shell {
+  min-height: 100dvh;
+  background: var(--bg);
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+@media (min-width: 768px) {
+  .app-shell {
+    display: grid;
+    /* sidebar column is fixed; main column is 1fr = everything else */
+    grid-template-columns: var(--sidebar-w) 1fr;
+    min-height: 100dvh;
   }
 }
 
+@media (min-width: 1280px) {
+  .app-shell {
+    grid-template-columns: var(--sidebar-w-lg) 1fr;
+  }
+}
+
+/* ─── SIDEBAR ────────────────────────────────────────────────── */
+.sidebar { display: none; }
+
+@media (min-width: 768px) {
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    background: var(--nav-bg);
+    border-right: 1px solid var(--nav-border);
+    padding: 24px 14px;
+    /* sticky so it stays visible while content scrolls */
+    position: sticky;
+    top: 0;
+    height: 100dvh;
+    overflow-y: auto;
+    /* exactly the sidebar-w token — no growth */
+    width: var(--sidebar-w);
+    flex-shrink: 0;
+  }
+}
+
+@media (min-width: 1280px) {
+  .sidebar {
+    width: var(--sidebar-w-lg);
+    padding: 28px 18px;
+  }
+}
+
+.sidebar-logo {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 28px;
+  padding: 0 8px;
+  letter-spacing: -0.3px;
+}
+.sidebar-logo em { font-style: normal; color: var(--accent); }
+
+.sidebar-nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: all var(--duration) var(--ease);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-family: var(--font-display);
+  font-weight: 500;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+}
+.sidebar-item:hover  { background: var(--bg-raised); color: var(--text-primary); }
+.sidebar-item.active { background: var(--accent-muted); color: var(--accent); }
+.sidebar-item svg    { width: 16px; height: 16px; flex-shrink: 0; }
+
+/* ─── MAIN CONTENT ───────────────────────────────────────────── */
+/*
+  CRITICAL: no max-width, no margin: auto.
+  It is a grid child — it fills the 1fr column completely.
+  min-width: 0 prevents content from overflowing the grid track.
+*/
+.main-content {
+  width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+  padding-bottom: 80px;
+}
+
+@media (min-width: 768px) {
+  .main-content { padding-bottom: 40px; }
+}
+
+/* ─── PAGE HEADER ────────────────────────────────────────────── */
+.page-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+@media (min-width: 768px) {
+  .page-header {
+    /* not sticky on desktop — sidebar handles nav */
+    position: relative;
+    padding: 20px 28px;
+  }
+}
+
+/* ─── PROMO BANNER ───────────────────────────────────────────── */
+.promo-banner {
+  background: var(--bg-banner);
+  border-radius: var(--r-xl);
+  padding: 18px 20px;
+  position: relative;
+  overflow: hidden;
+  margin: 10px 16px;
+}
+
+@media (min-width: 768px) {
+  .promo-banner { margin: 12px 28px; padding: 24px 28px; }
+}
+
+.promo-banner::before {
+  content: '';
+  position: absolute; right: -20px; top: -20px;
+  width: 130px; height: 130px; border-radius: 50%;
+  background: var(--accent); opacity: 0.12;
+}
+.promo-banner::after {
+  content: '';
+  position: absolute; right: 35px; bottom: -28px;
+  width: 90px; height: 90px; border-radius: 50%;
+  background: var(--accent); opacity: 0.06;
+}
+
+/* ─── SECTION HEADER ─────────────────────────────────────────── */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px 8px;
+}
+
+@media (min-width: 768px) {
+  .section-header { padding: 16px 28px 10px; }
+}
+
+.section-title {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.section-link { font-size: 12px; color: var(--accent); cursor: pointer; font-weight: 500; }
+
+/* ─── HORIZONTAL SCROLL ──────────────────────────────────────── */
+.h-scroll {
+  display: flex;
+  gap: 8px;
+  padding: 0 16px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.h-scroll::-webkit-scrollbar { display: none; }
+.h-scroll > * { flex-shrink: 0; }
+
+@media (min-width: 768px) {
+  .h-scroll { padding: 0 28px; }
+}
+
+/* ─── PRODUCT GRID ───────────────────────────────────────────── */
+/*
+  Fills 100% of .main-content (which is already the full remaining
+  viewport width after sidebar). Columns grow with available space.
+
+  Breakpoints are based on the CONTENT area width, not viewport:
+  The content area = viewport - sidebar-w.
+  At 1024px viewport with 220px sidebar → 804px content → 3-4 cols
+  At 1440px viewport with 260px sidebar → 1180px content → 5 cols
+*/
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  padding: 0 16px 24px;
+}
+
+/* 3 columns when content area is wide enough */
+@media (min-width: 768px) {
+  .product-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    padding: 0 28px 32px;
+  }
+}
+
+/* 4 columns */
+@media (min-width: 1100px) {
+  .product-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+  }
+}
+
+/* 5 columns on very wide screens */
+@media (min-width: 1400px) {
+  .product-grid {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+    padding: 0 32px 40px;
+  }
+}
+
+/* Featured wide card — always spans 2 columns */
+.product-card.wide {
+  grid-column: span 2;
+  display: flex;
+  flex-direction: row;
+}
+.product-card.wide .product-img-wrap {
+  width: 130px;
+  min-height: 120px;
+  flex-shrink: 0;
+  aspect-ratio: unset;
+}
+.product-card.wide .product-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 14px;
+}
+.product-card.wide .product-name { font-size: 13px; }
+
+/* ─── PRODUCT CARD ───────────────────────────────────────────── */
+.product-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color var(--duration) var(--ease),
+              transform    var(--duration) var(--ease);
+}
+.product-card:hover {
+  border-color: var(--accent-border);
+  transform: translateY(-1px);
+}
+.product-card:active { transform: translateY(0) scale(0.98); }
+
+.product-img-wrap {
+  position: relative;
+  background: var(--bg-raised);
+  aspect-ratio: 1;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.product-img-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 300ms var(--ease);
+}
+.product-card:hover .product-img-wrap img { transform: scale(1.04); }
+
+.product-info { padding: 10px 12px 12px; }
+
+.product-name {
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+  margin-bottom: 3px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.product-category { font-size: 10px; color: var(--text-muted); margin-bottom: 8px; }
+.product-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.product-price {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.add-btn {
+  width: 26px; height: 26px;
+  border-radius: var(--r-sm);
+  background: var(--accent); color: var(--accent-text);
+  border: none;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; flex-shrink: 0;
+  transition: all var(--duration) var(--ease);
+}
+.add-btn:hover  { background: var(--accent-hover); }
+.add-btn:active { transform: scale(0.88); }
+
+/* ─── BOTTOM NAV (mobile only) ───────────────────────────────── */
+.bottom-nav {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 60px;
+  background: var(--nav-bg);
+  border-top: 1px solid var(--nav-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 100;
+  padding: 0 8px;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+@media (min-width: 768px) { .bottom-nav { display: none; } }
+
+.nav-item {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 3px;
+  padding: 6px 14px; border-radius: var(--r-md);
+  cursor: pointer; transition: all var(--duration) var(--ease);
+  flex: 1; color: var(--nav-icon);
+  background: none; border: none;
+}
+.nav-item.active { color: var(--nav-active); background: var(--accent-muted); }
+.nav-item span { font-size: 10px; font-family: var(--font-display); font-weight: 500; }
+
+/* ─── PILL ───────────────────────────────────────────────────── */
+.pill {
+  display: inline-flex; align-items: center;
+  padding: 5px 14px; border-radius: var(--r-full);
+  font-size: 12px; font-weight: 400; white-space: nowrap; cursor: pointer;
+  transition: all var(--duration) var(--ease);
+  background: var(--bg-input); border: 1px solid var(--border-strong);
+  color: var(--text-secondary);
+}
+.pill:hover  { border-color: var(--accent-border); color: var(--text-primary); }
+.pill.active { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 500; }
+
+/* ─── BADGE ──────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex; align-items: center;
+  padding: 2px 8px; border-radius: var(--r-sm);
+  font-size: 10px; font-weight: 600;
+  font-family: var(--font-display);
+  letter-spacing: 0.04em; text-transform: uppercase;
+}
+.badge-accent { background: var(--accent); color: var(--accent-text); }
+.badge-soft   { background: var(--accent-muted); color: var(--accent); border: 1px solid var(--accent-border); }
+.badge-muted  { background: var(--bg-raised); color: var(--text-muted); border: 1px solid var(--border); }
+
+/* ─── ICON BUTTON ────────────────────────────────────────────── */
+.icon-btn {
+  width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--r-md);
+  background: var(--bg-raised); border: 1px solid var(--border);
+  cursor: pointer; transition: all var(--duration) var(--ease);
+  color: var(--text-secondary); position: relative;
+}
+.icon-btn:hover { border-color: var(--accent-border); color: var(--text-primary); }
+
+.notif-dot {
+  position: absolute; top: -3px; right: -3px;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--accent);
+  font-size: 8px; font-weight: 600; color: var(--accent-text);
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid var(--bg);
+}
+
+/* ─── BUTTONS ────────────────────────────────────────────────── */
+.btn-primary {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 10px 20px; border-radius: var(--r-md);
+  background: var(--accent); color: var(--accent-text);
+  font-family: var(--font-display); font-size: 13px; font-weight: 600;
+  cursor: pointer; border: none;
+  transition: all var(--duration) var(--ease); white-space: nowrap;
+}
+.btn-primary:hover  { background: var(--accent-hover); }
+.btn-primary:active { transform: scale(0.97); }
+
+.btn-ghost {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 10px 20px; border-radius: var(--r-md);
+  background: transparent; color: var(--text-primary);
+  font-family: var(--font-display); font-size: 13px; font-weight: 500;
+  cursor: pointer; border: 1px solid var(--border-strong);
+  transition: all var(--duration) var(--ease);
+}
+.btn-ghost:hover  { border-color: var(--accent-border); color: var(--accent); }
+.btn-ghost:active { transform: scale(0.97); }
+
+/* ─── INPUT ──────────────────────────────────────────────────── */
+.input-base {
+  width: 100%; padding: 10px 14px; border-radius: var(--r-md);
+  background: var(--bg-input); border: 1px solid var(--border-strong);
+  color: var(--text-primary); font-family: var(--font-body); font-size: 14px;
+  transition: all var(--duration) var(--ease); outline: none;
+}
+.input-base::placeholder { color: var(--text-muted); }
+.input-base:focus { border-color: var(--accent); background: var(--bg-card); }
+
+.search-wrap { position: relative; width: 100%; }
+.search-wrap .search-icon {
+  position: absolute; left: 12px; top: 50%;
+  transform: translateY(-50%); color: var(--text-muted); pointer-events: none;
+}
+.search-wrap .input-base { padding-left: 38px; }
+
+/* ─── SURFACES ───────────────────────────────────────────────── */
+.surface        { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-lg); }
+.surface-raised { background: var(--bg-raised); border-radius: var(--r-lg); }
+.surface-input  { background: var(--bg-input); border: 1px solid var(--border-strong); border-radius: var(--r-md); }
+
+/* ─── ORDER CARD ─────────────────────────────────────────────── */
+.order-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--r-lg); padding: 14px 16px;
+  margin: 0 16px 8px;
+  transition: border-color var(--duration) var(--ease);
+}
+.order-card:hover { border-color: var(--accent-border); }
+@media (min-width: 768px) { .order-card { margin: 0 28px 10px; } }
+
+/* ─── STATUS ─────────────────────────────────────────────────── */
+.status-pending   { background: rgba(200,169,110,0.12); color: #c8a96e; border: 1px solid rgba(200,169,110,0.25); }
+.status-success   { background: rgba(74,168,100,0.1);   color: #4aa864; border: 1px solid rgba(74,168,100,0.2); }
+.status-cancelled { background: rgba(200,80,80,0.1);    color: #c85050; border: 1px solid rgba(200,80,80,0.2); }
+.status-shipping  { background: rgba(80,140,200,0.1);   color: #508cc8; border: 1px solid rgba(80,140,200,0.2); }
+
+/* ─── AVATAR ─────────────────────────────────────────────────── */
+.avatar {
+  width: 44px; height: 44px; border-radius: 50%;
+  background: var(--accent-muted); border: 1.5px solid var(--accent-border);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-weight: 600; font-size: 14px;
+  color: var(--accent); flex-shrink: 0;
+}
+
+/* ─── THEME TOGGLE ───────────────────────────────────────────── */
+.theme-toggle {
+  width: 44px; height: 24px; border-radius: var(--r-full);
+  background: var(--bg-raised); border: 1px solid var(--border-strong);
+  position: relative; cursor: pointer;
+  transition: all var(--duration) var(--ease); flex-shrink: 0;
+}
+.theme-toggle.on { background: var(--accent-muted); border-color: var(--accent-border); }
+.theme-toggle-knob {
+  position: absolute; top: 3px; left: 3px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--text-muted);
+  transition: all var(--duration) var(--ease);
+}
+.theme-toggle.on .theme-toggle-knob { left: calc(100% - 19px); background: var(--accent); }
+
+/* ─── SKELETON ───────────────────────────────────────────────── */
+@keyframes shimmer { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+.skeleton { background: var(--bg-raised); border-radius: var(--r-md); animation: shimmer 1.5s ease-in-out infinite; }
+
+/* ─── DIVIDER ────────────────────────────────────────────────── */
+.divider { height: 1px; background: var(--border); margin: 12px 0; }
+
+/* ─── EMPTY STATE ────────────────────────────────────────────── */
+.empty-state {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 48px 32px; text-align: center; gap: 12px;
+}
+.empty-state p { font-size: 13px; color: var(--text-muted); }
+
+/* ─── ANIMATIONS ─────────────────────────────────────────────── */
+@keyframes fadeUp  { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+
+.animate-fade-up  { animation: fadeUp  300ms var(--ease) both; }
+.animate-fade-in  { animation: fadeIn  250ms var(--ease) both; }
+.animate-scale-in { animation: scaleIn 200ms var(--ease) both; }
+
+.stagger > *:nth-child(1) { animation-delay:   0ms; }
+.stagger > *:nth-child(2) { animation-delay:  60ms; }
+.stagger > *:nth-child(3) { animation-delay: 120ms; }
+.stagger > *:nth-child(4) { animation-delay: 180ms; }
+.stagger > *:nth-child(5) { animation-delay: 240ms; }
+.stagger > *:nth-child(6) { animation-delay: 300ms; }
+.stagger > *:nth-child(7) { animation-delay: 360ms; }
+.stagger > *:nth-child(8) { animation-delay: 420ms; }
+
+/* ─── UTILITY ────────────────────────────────────────────────── */
+.font-display   { font-family: var(--font-display); }
+.font-body      { font-family: var(--font-body); }
+.accent         { color: var(--accent); }
+.text-primary   { color: var(--text-primary); }
+.text-secondary { color: var(--text-secondary); }
+.text-muted-c   { color: var(--text-muted); }
+.px-page        { padding-left: 16px; padding-right: 16px; }
+@media (min-width: 768px) { .px-page { padding-left: 28px; padding-right: 28px; } }
+
+/* ─── TAILWIND BASE ──────────────────────────────────────────── */
 @layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
-    --radius: 0.5rem;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-  .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground; }
 }
-
-@layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
-}
+@layer utilities { .text-balance { text-wrap: balance; } }

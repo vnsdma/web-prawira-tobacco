@@ -1,76 +1,111 @@
 "use client"
 
-import type React from "react"
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  type ReactNode,
+} from "react"
 
-import { createContext, useContext, useState, useEffect } from "react"
-
+/* ─── Types ──────────────────────────────────────────────────── */
 export interface CartItem {
-  id: string
-  name: string
-  price: number
-  image: string
+  id:       string
+  name:     string
+  price:    number
+  image:    string
   quantity: number
 }
 
 interface CartContextType {
-  items: CartItem[]
-  addItem: (item: Omit<CartItem, "quantity">) => void
-  removeItem: (id: string) => void
+  items:          CartItem[]
+  addItem:        (item: Omit<CartItem, "quantity">) => void
+  removeItem:     (id: string) => void
   updateQuantity: (id: string, quantity: number) => void
-  clearCart: () => void
-  getTotalItems: () => number
-  getTotalPrice: () => number
+  clearCart:      () => void
+  getTotalItems:  () => number
+  getTotalPrice:  () => number
+  isOpen:         boolean
+  setIsOpen:      (open: boolean) => void
 }
 
+/* ─── Context ────────────────────────────────────────────────── */
 const CartContext = createContext<CartContextType | undefined>(undefined)
 
-export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>([])
+const STORAGE_KEY = "prawira_cart"
 
+/* ─── Provider ───────────────────────────────────────────────── */
+export function CartProvider({ children }: { children: ReactNode }) {
+  const [items, setItems]     = useState<CartItem[]>([])
+  const [isOpen, setIsOpen]   = useState(false)
+  const [hydrated, setHydrated] = useState(false)
+
+  /* Load from localStorage once on mount */
   useEffect(() => {
-    const savedCart = localStorage.getItem("tobacco-cart")
-    if (savedCart) {
-      setItems(JSON.parse(savedCart))
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed)) setItems(parsed)
+      }
+    } catch {
+      // corrupted storage — start fresh
+      localStorage.removeItem(STORAGE_KEY)
     }
+    setHydrated(true)
   }, [])
 
+  /* Persist on every change (skip before hydration to avoid overwrite) */
   useEffect(() => {
-    localStorage.setItem("tobacco-cart", JSON.stringify(items))
-  }, [items])
+    if (!hydrated) return
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
+    } catch {
+      // storage full or unavailable — silently ignore
+    }
+  }, [items, hydrated])
 
-  const addItem = (newItem: Omit<CartItem, "quantity">) => {
+  /* ── Actions ── */
+  const addItem = useCallback((newItem: Omit<CartItem, "quantity">) => {
     setItems((prev) => {
-      const existingItem = prev.find((item) => item.id === newItem.id)
-      if (existingItem) {
-        return prev.map((item) => (item.id === newItem.id ? { ...item, quantity: item.quantity + 1 } : item))
+      const existing = prev.find((i) => i.id === newItem.id)
+      if (existing) {
+        return prev.map((i) =>
+          i.id === newItem.id ? { ...i, quantity: i.quantity + 1 } : i
+        )
       }
       return [...prev, { ...newItem, quantity: 1 }]
     })
-  }
+  }, [])
 
-  const removeItem = (id: string) => {
-    setItems((prev) => prev.filter((item) => item.id !== id))
-  }
+  const removeItem = useCallback((id: string) => {
+    setItems((prev) => prev.filter((i) => i.id !== id))
+  }, [])
 
-  const updateQuantity = (id: string, quantity: number) => {
+  const updateQuantity = useCallback((id: string, quantity: number) => {
     if (quantity <= 0) {
-      removeItem(id)
+      setItems((prev) => prev.filter((i) => i.id !== id))
       return
     }
-    setItems((prev) => prev.map((item) => (item.id === id ? { ...item, quantity } : item)))
-  }
+    setItems((prev) =>
+      prev.map((i) => (i.id === id ? { ...i, quantity } : i))
+    )
+  }, [])
 
-  const clearCart = () => {
+  const clearCart = useCallback(() => {
     setItems([])
-  }
+  }, [])
 
-  const getTotalItems = () => {
-    return items.reduce((total, item) => total + item.quantity, 0)
-  }
+  const getTotalItems = useCallback(
+    () => items.reduce((sum, i) => sum + i.quantity, 0),
+    [items]
+  )
 
-  const getTotalPrice = () => {
-    return items.reduce((total, item) => total + item.price * item.quantity, 0)
-  }
+  const getTotalPrice = useCallback(
+    () => items.reduce((sum, i) => sum + i.price * i.quantity, 0),
+    [items]
+  )
 
   return (
     <CartContext.Provider
@@ -82,6 +117,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         clearCart,
         getTotalItems,
         getTotalPrice,
+        isOpen,
+        setIsOpen,
       }}
     >
       {children}
@@ -89,10 +126,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   )
 }
 
+/* ─── Hook ───────────────────────────────────────────────────── */
 export function useCart() {
-  const context = useContext(CartContext)
-  if (context === undefined) {
-    throw new Error("useCart must be used within a CartProvider")
-  }
-  return context
+  const ctx = useContext(CartContext)
+  if (!ctx) throw new Error("useCart must be used within CartProvider")
+  return ctx
 }

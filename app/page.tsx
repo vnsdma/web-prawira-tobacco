@@ -1,161 +1,290 @@
 "use client"
 
-import { useState } from "react"
-import { ShoppingCart, Search, Menu, User, Package } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import ProductGrid from "@/components/product-grid"
-import CartSheet from "@/components/cart-sheet"
-import CategoryFilter from "@/components/category-filter"
-import OrderHistory from "@/components/order-history"
-import ProfileSection from "@/components/profile-section"
+import { useState, useEffect } from "react"
+import { ShoppingCart, Search, Bell, Sun, Moon, Package, User, LayoutGrid, Home, Tag, ChevronRight, Plus, Flame, Sparkles } from "lucide-react"
 import { useCart } from "@/hooks/use-cart"
 import { useAuth } from "@/hooks/use-auth"
-import { Tabs, TabsContent } from "@/components/ui/tabs"
+import { useTheme } from "next-themes"
+import CartSheet from "@/components/cart-sheet"
+import ProductGrid from "@/components/product-grid"
+import CategoryFilter from "@/components/category-filter"
+import PromoBanner from "@/components/promo-banner"
+import PromoChips from "@/components/promo-chips"
+import DesktopSidebar from "@/components/desktop-sidebar"
 
 export default function HomePage() {
-  const [searchQuery, setSearchQuery] = useState("")
+  const [searchQuery, setSearchQuery]       = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
-  const [activeTab, setActiveTab] = useState("home")
-  const { getTotalItems } = useCart()
-  const { user, isAuthenticated } = useAuth()
+  const [activeTab, setActiveTab]           = useState("home")
+  const [searchFocused, setSearchFocused]   = useState(false)
+  const { getTotalItems }                   = useCart()
+  const { user, isAuthenticated }           = useAuth()
+  const { theme, setTheme }                 = useTheme()
+  const [mounted, setMounted]               = useState(false)
+
+  useEffect(() => { setMounted(true) }, [])
+
+  const isDark = theme === "dark"
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Mobile Header */}
-      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b">
-        <div className="flex items-center justify-between p-4">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Menu className="h-6 w-6" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-80">
-              <div className="flex flex-col space-y-4 mt-8">
-                <h2 className="text-lg font-semibold">Menu</h2>
-                <nav className="flex flex-col space-y-2">
-                  <Button variant="ghost" className="justify-start" onClick={() => setActiveTab("home")}>
-                    Beranda
-                  </Button>
-                  <Button variant="ghost" className="justify-start" onClick={() => setActiveTab("orders")}>
-                    Pesanan Saya
-                  </Button>
-                  <Button variant="ghost" className="justify-start" onClick={() => setActiveTab("profile")}>
-                    {isAuthenticated ? "Profil" : "Masuk/Daftar"}
-                  </Button>
-                </nav>
-                {isAuthenticated && (
-                  <div className="mt-4 p-3 bg-muted rounded-lg">
-                    <p className="text-sm font-medium">{user?.name}</p>
-                    <p className="text-xs text-muted-foreground">{user?.email}</p>
-                  </div>
-                )}
-              </div>
-            </SheetContent>
-          </Sheet>
+    <div className="app-shell">
 
-          <h1 className="text-xl font-bold text-primary">Prawira Tobacco</h1>
+      {/* ── Desktop sidebar ── */}
+      <DesktopSidebar activeTab={activeTab} onTabChange={setActiveTab} />
 
-          <div className="flex items-center space-x-2">
-            <Button variant="ghost" size="icon" onClick={() => setActiveTab("profile")}>
-              <User className="h-6 w-6" />
-            </Button>
-            <CartSheet>
-              <Button variant="ghost" size="icon" className="relative">
-                <ShoppingCart className="h-6 w-6" />
-                {getTotalItems() > 0 && (
-                  <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
-                    {getTotalItems()}
-                  </Badge>
-                )}
-              </Button>
-            </CartSheet>
-          </div>
-        </div>
+      {/* ── Main content ── */}
+      <main className="main-content">
 
+        {/* ═══ HOME TAB ═══════════════════════════════════════════ */}
         {activeTab === "home" && (
-          <div className="px-4 pb-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Cari produk tembakau..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
-        )}
-      </header>
+          <>
+            {/* Page header */}
+            <header className="page-header">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                {/* Mobile logo */}
+                <span
+                  className="font-display font-bold text-lg tracking-tight leading-none md:hidden"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  PRAWIRA<span style={{ color: "var(--accent)" }}>.</span>
+                </span>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsContent value="home" className="mt-0">
-          <CategoryFilter selectedCategory={selectedCategory} onCategoryChange={setSelectedCategory} />
+                {/* Desktop search in header */}
+                <div className="hidden md:flex search-wrap flex-1 max-w-sm">
+                  <Search
+                    size={14}
+                    className="search-icon"
+                  />
+                  <input
+                    className="input-base"
+                    placeholder="Cari produk tembakau..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+              </div>
 
-          {/* Hero Banner */}
-          <div className="px-4 py-6">
-            <Card className="bg-gradient-to-r from-amber-500 to-orange-600 text-white">
-              <CardContent className="p-6">
-                <h2 className="text-2xl font-bold mb-2">
-                  {isAuthenticated ? `Selamat datang, ${user?.name?.split(" ")[0]}!` : "Selamat Datang!"}
-                </h2>
-                <p className="text-amber-100 mb-4">Temukan produk tembakau berkualitas</p>
-                {!isAuthenticated && (
-                  <Button variant="secondary" size="sm" onClick={() => setActiveTab("profile")}>
-                    Daftar untuk Promo Khusus
-                  </Button>
+              <div className="flex items-center gap-2">
+                {/* Dark mode toggle */}
+                {mounted && (
+                  <button
+                    className="icon-btn"
+                    onClick={() => setTheme(isDark ? "light" : "dark")}
+                    aria-label="Toggle theme"
+                  >
+                    {isDark
+                      ? <Sun size={15} />
+                      : <Moon size={15} />
+                    }
+                  </button>
                 )}
-              </CardContent>
-            </Card>
-          </div>
 
-          <ProductGrid searchQuery={searchQuery} selectedCategory={selectedCategory} />
-        </TabsContent>
+                {/* Notification */}
+                <button className="icon-btn">
+                  <Bell size={15} />
+                </button>
 
-        <TabsContent value="orders" className="mt-0">
-          <OrderHistory />
-        </TabsContent>
+                {/* Cart */}
+                <CartSheet>
+                  <button className="icon-btn" aria-label="Keranjang">
+                    <ShoppingCart size={15} />
+                    {getTotalItems() > 0 && (
+                      <span className="notif-dot">{getTotalItems()}</span>
+                    )}
+                  </button>
+                </CartSheet>
+              </div>
+            </header>
 
-        <TabsContent value="profile" className="mt-0">
-          <ProfileSection />
-        </TabsContent>
-      </Tabs>
+            {/* Mobile search */}
+            <div className="px-lg pb-0 pt-3 md:hidden">
+              <div className="search-wrap">
+                <Search size={14} className="search-icon" />
+                <input
+                  className="input-base"
+                  placeholder="Cari produk tembakau..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => setSearchFocused(true)}
+                  onBlur={() => setSearchFocused(false)}
+                />
+              </div>
+            </div>
 
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-background border-t">
-        <div className="flex items-center justify-around py-2">
-          <Button
-            variant={activeTab === "home" ? "default" : "ghost"}
-            className="flex flex-col items-center py-2"
-            onClick={() => setActiveTab("home")}
-          >
-            <div className="h-6 w-6 mb-1 bg-primary rounded" />
-            <span className="text-xs">Beranda</span>
-          </Button>
-          <Button
-            variant={activeTab === "orders" ? "default" : "ghost"}
-            className="flex flex-col items-center py-2"
-            onClick={() => setActiveTab("orders")}
-          >
-            <Package className="h-6 w-6 mb-1" />
-            <span className="text-xs">Pesanan</span>
-          </Button>
-          <Button
-            variant={activeTab === "profile" ? "default" : "ghost"}
-            className="flex flex-col items-center py-2"
-            onClick={() => setActiveTab("profile")}
-          >
-            <User className="h-6 w-6 mb-1" />
-            <span className="text-xs">{isAuthenticated ? "Profil" : "Masuk"}</span>
-          </Button>
-        </div>
+            {/* Promo banner */}
+            <div className="mt-3">
+              <PromoBanner />
+            </div>
+
+            {/* Promo chips */}
+            <PromoChips />
+
+            {/* Category filter */}
+            <CategoryFilter
+              selectedCategory={selectedCategory}
+              onCategoryChange={setSelectedCategory}
+            />
+
+            {/* Featured products header */}
+            <div className="section-header mt-1">
+              <span className="section-title">
+                {selectedCategory === "all"
+                  ? "Semua Produk"
+                  : selectedCategory === "cigarettes"
+                  ? "Rokok"
+                  : selectedCategory === "tobacco"
+                  ? "Tembakau"
+                  : "Aksesoris"}
+              </span>
+              <span className="section-link flex items-center gap-1">
+                Filter <ChevronRight size={12} />
+              </span>
+            </div>
+
+            {/* Product grid */}
+            <ProductGrid
+              searchQuery={searchQuery}
+              selectedCategory={selectedCategory}
+            />
+          </>
+        )}
+
+        {/* ═══ CATALOG TAB ════════════════════════════════════════ */}
+        {activeTab === "catalog" && (
+          <>
+            <header className="page-header">
+              <span className="font-display font-bold text-base" style={{ color: "var(--text-primary)" }}>
+                Katalog
+              </span>
+              {mounted && (
+                <button
+                  className="icon-btn"
+                  onClick={() => setTheme(isDark ? "light" : "dark")}
+                >
+                  {isDark ? <Sun size={15} /> : <Moon size={15} />}
+                </button>
+              )}
+            </header>
+
+            <div className="px-lg pt-3">
+              <div className="search-wrap">
+                <Search size={14} className="search-icon" />
+                <input
+                  className="input-base"
+                  placeholder="Cari produk..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <CategoryFilter
+              selectedCategory={selectedCategory}
+              onCategoryChange={setSelectedCategory}
+            />
+
+            <div className="section-header mt-1">
+              <span className="section-title">
+                {selectedCategory === "all" ? "Semua Produk" : selectedCategory}
+              </span>
+            </div>
+
+            <ProductGrid
+              searchQuery={searchQuery}
+              selectedCategory={selectedCategory}
+            />
+          </>
+        )}
+
+        {/* ═══ ORDERS TAB ═════════════════════════════════════════ */}
+        {activeTab === "orders" && (
+          <>
+            <header className="page-header">
+              <span className="font-display font-bold text-base" style={{ color: "var(--text-primary)" }}>
+                Pesanan Saya
+              </span>
+              {mounted && (
+                <button
+                  className="icon-btn"
+                  onClick={() => setTheme(isDark ? "light" : "dark")}
+                >
+                  {isDark ? <Sun size={15} /> : <Moon size={15} />}
+                </button>
+              )}
+            </header>
+            {/* OrderHistory lazy import to keep chunk small */}
+            <OrderHistorySection />
+          </>
+        )}
+
+        {/* ═══ PROFILE TAB ════════════════════════════════════════ */}
+        {activeTab === "profile" && (
+          <>
+            <header className="page-header">
+              <span className="font-display font-bold text-base" style={{ color: "var(--text-primary)" }}>
+                {isAuthenticated ? "Profil" : "Masuk"}
+              </span>
+              {mounted && (
+                <button
+                  className="icon-btn"
+                  onClick={() => setTheme(isDark ? "light" : "dark")}
+                >
+                  {isDark ? <Sun size={15} /> : <Moon size={15} />}
+                </button>
+              )}
+            </header>
+            <ProfileSection />
+          </>
+        )}
+
+      </main>
+
+      {/* ── Mobile bottom nav ── */}
+      <nav className="bottom-nav md:hidden">
+        <button
+          className={`nav-item ${activeTab === "home" ? "active" : ""}`}
+          onClick={() => setActiveTab("home")}
+        >
+          <Home size={18} />
+          <span>Beranda</span>
+        </button>
+
+        <button
+          className={`nav-item ${activeTab === "catalog" ? "active" : ""}`}
+          onClick={() => setActiveTab("catalog")}
+        >
+          <LayoutGrid size={18} />
+          <span>Katalog</span>
+        </button>
+
+        <button
+          className={`nav-item ${activeTab === "orders" ? "active" : ""}`}
+          onClick={() => setActiveTab("orders")}
+        >
+          <Package size={18} />
+          <span>Pesanan</span>
+        </button>
+
+        <button
+          className={`nav-item ${activeTab === "profile" ? "active" : ""}`}
+          onClick={() => setActiveTab("profile")}
+        >
+          <User size={18} />
+          <span>Profil</span>
+        </button>
       </nav>
 
-      <div className="h-20" />
     </div>
   )
+}
+
+/* ─── Lazy section components (avoid circular imports) ────────── */
+function OrderHistorySection() {
+  const OrderHistory = require("@/components/order-history").default
+  return <OrderHistory />
+}
+
+function ProfileSection() {
+  const ProfileSectionComponent = require("@/components/profile-section").default
+  return <ProfileSectionComponent />
 }

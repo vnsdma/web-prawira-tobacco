@@ -1,119 +1,296 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { Minus, Plus, Trash2 } from "lucide-react"
+import type { ReactNode } from "react"
 import { useCart } from "@/hooks/use-cart"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { Minus, Plus, Trash2, ShoppingCart, ArrowRight } from "lucide-react"
+import { useState } from "react"
 import CheckoutDialog from "./checkout-dialog"
 
 interface CartSheetProps {
-  children: React.ReactNode
+  children: ReactNode
+}
+
+function formatPrice(price: number) {
+  return new Intl.NumberFormat("id-ID", {
+    style:                 "currency",
+    currency:              "IDR",
+    minimumFractionDigits: 0,
+  }).format(price)
 }
 
 export default function CartSheet({ children }: CartSheetProps) {
   const { items, updateQuantity, removeItem, getTotalPrice, getTotalItems } = useCart()
   const [showCheckout, setShowCheckout] = useState(false)
+  const [sheetOpen, setSheetOpen]       = useState(false)
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 0,
-    }).format(price)
+  const handleCheckout = () => {
+    setSheetOpen(false)
+    setTimeout(() => setShowCheckout(true), 300)
   }
 
   return (
     <>
-      <Sheet>
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetTrigger asChild>{children}</SheetTrigger>
-        <SheetContent side="right" className="w-full sm:max-w-md">
-          <SheetHeader>
-            <SheetTitle className="flex items-center justify-between">
-              Keranjang Belanja
-              <Badge variant="secondary">{getTotalItems()} item</Badge>
+
+        <SheetContent
+          side="right"
+          style={{
+            width:      "100%",
+            maxWidth:   "420px",
+            background: "var(--bg)",
+            border:     "none",
+            borderLeft: "1px solid var(--border)",
+            padding:    0,
+            display:    "flex",
+            flexDirection: "column",
+          }}
+        >
+          {/* Header */}
+          <SheetHeader
+            style={{
+              padding:      "20px 20px 16px",
+              borderBottom: "1px solid var(--border)",
+              flexShrink:   0,
+            }}
+          >
+            <SheetTitle
+              style={{
+                fontFamily: "var(--font-display)",
+                fontSize:   "16px",
+                fontWeight: 700,
+                color:      "var(--text-primary)",
+                display:    "flex",
+                alignItems: "center",
+                gap:        "10px",
+              }}
+            >
+              <ShoppingCart size={18} style={{ color: "var(--accent)" }} />
+              Keranjang
+              {getTotalItems() > 0 && (
+                <span
+                  className="badge badge-accent"
+                  style={{ fontSize: "10px", padding: "2px 8px" }}
+                >
+                  {getTotalItems()} item
+                </span>
+              )}
             </SheetTitle>
           </SheetHeader>
 
-          <div className="flex flex-col h-full">
-            <div className="flex-1 overflow-auto py-4">
-              {items.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-muted-foreground">Keranjang masih kosong</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {items.map((item) => (
-                    <div key={item.id} className="flex items-center space-x-3 p-3 border rounded-lg">
-                      <img
-                        src={item.image || "/placeholder.svg?height=64&width=64"}
-                        alt={item.name}
-                        className="w-16 h-16 object-cover rounded"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-sm line-clamp-2">{item.name}</h4>
-                        <p className="text-sm font-bold text-primary">{formatPrice(item.price)}</p>
-                        <div className="flex items-center space-x-2 mt-2">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => updateQuantity(item.id, Math.max(0, item.quantity - 1))}
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className="text-sm font-medium w-8 text-center">{item.quantity}</span>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive"
-                            onClick={() => removeItem(item.id)}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
+          {/* Items */}
+          <div style={{ flex: 1, overflowY: "auto", padding: "12px 20px" }}>
+            {items.length === 0 ? (
+              <div className="empty-state" style={{ paddingTop: "80px" }}>
+                <ShoppingCart size={40} style={{ color: "var(--text-muted)", opacity: 0.3 }} />
+                <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>
+                  Keranjang masih kosong
+                </p>
+                <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                  Tambahkan produk untuk mulai belanja
+                </p>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                {items.map((item) => (
+                  <div
+                    key={item.id}
+                    style={{
+                      display:      "flex",
+                      gap:          "12px",
+                      padding:      "12px",
+                      borderRadius: "var(--r-lg)",
+                      background:   "var(--bg-card)",
+                      border:       "1px solid var(--border)",
+                      alignItems:   "center",
+                    }}
+                  >
+                    {/* Image */}
+                    <div
+                      style={{
+                        width:        "56px",
+                        height:       "56px",
+                        borderRadius: "var(--r-md)",
+                        background:   "var(--bg-raised)",
+                        flexShrink:   0,
+                        overflow:     "hidden",
+                        display:      "flex",
+                        alignItems:   "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      {item.image ? (
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        />
+                      ) : (
+                        <span style={{ fontSize: "22px", opacity: 0.25 }}>🌿</span>
+                      )}
+                    </div>
+
+                    {/* Info */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p
+                        style={{
+                          fontFamily:   "var(--font-display)",
+                          fontSize:     "13px",
+                          fontWeight:   600,
+                          color:        "var(--text-primary)",
+                          marginBottom: "2px",
+                          overflow:     "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace:   "nowrap",
+                        }}
+                      >
+                        {item.name}
+                      </p>
+                      <p
+                        style={{
+                          fontFamily: "var(--font-display)",
+                          fontSize:   "13px",
+                          fontWeight: 600,
+                          color:      "var(--accent)",
+                          marginBottom: "8px",
+                        }}
+                      >
+                        {formatPrice(item.price)}
+                      </p>
+
+                      {/* Qty controls */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <button
+                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                          style={{
+                            width:          "24px",
+                            height:         "24px",
+                            borderRadius:   "6px",
+                            border:         "1px solid var(--border-strong)",
+                            background:     "var(--bg-raised)",
+                            display:        "flex",
+                            alignItems:     "center",
+                            justifyContent: "center",
+                            cursor:         "pointer",
+                            color:          "var(--text-secondary)",
+                          }}
+                        >
+                          <Minus size={10} strokeWidth={2.5} />
+                        </button>
+
+                        <span
+                          style={{
+                            fontFamily: "var(--font-display)",
+                            fontSize:   "13px",
+                            fontWeight: 600,
+                            color:      "var(--text-primary)",
+                            minWidth:   "20px",
+                            textAlign:  "center",
+                          }}
+                        >
+                          {item.quantity}
+                        </span>
+
+                        <button
+                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                          style={{
+                            width:          "24px",
+                            height:         "24px",
+                            borderRadius:   "6px",
+                            background:     "var(--accent)",
+                            border:         "none",
+                            display:        "flex",
+                            alignItems:     "center",
+                            justifyContent: "center",
+                            cursor:         "pointer",
+                            color:          "var(--accent-text)",
+                          }}
+                        >
+                          <Plus size={10} strokeWidth={2.5} />
+                        </button>
+
+                        <button
+                          onClick={() => removeItem(item.id)}
+                          style={{
+                            marginLeft:     "auto",
+                            width:          "24px",
+                            height:         "24px",
+                            borderRadius:   "6px",
+                            border:         "1px solid var(--border-strong)",
+                            background:     "transparent",
+                            display:        "flex",
+                            alignItems:     "center",
+                            justifyContent: "center",
+                            cursor:         "pointer",
+                            color:          "var(--text-muted)",
+                          }}
+                        >
+                          <Trash2 size={10} strokeWidth={2} />
+                        </button>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {items.length > 0 && (
-              <div className="border-t pt-4 space-y-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Subtotal</span>
-                    <span>{formatPrice(getTotalPrice())}</span>
                   </div>
-                  <Separator />
-                  <div className="flex justify-between font-bold">
-                    <span>Total</span>
-                    <span>{formatPrice(getTotalPrice())}</span>
-                  </div>
-                </div>
-                <Button className="w-full" onClick={() => setShowCheckout(true)}>
-                  Checkout ({getTotalItems()} item)
-                </Button>
+                ))}
               </div>
             )}
           </div>
+
+          {/* Footer */}
+          {items.length > 0 && (
+            <div
+              style={{
+                padding:       "16px 20px",
+                borderTop:     "1px solid var(--border)",
+                flexShrink:    0,
+                background:    "var(--bg)",
+              }}
+            >
+              {/* Subtotal */}
+              <div
+                style={{
+                  display:        "flex",
+                  justifyContent: "space-between",
+                  alignItems:     "center",
+                  marginBottom:   "14px",
+                }}
+              >
+                <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>
+                  Total ({getTotalItems()} item)
+                </span>
+                <span
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontSize:   "16px",
+                    fontWeight: 700,
+                    color:      "var(--accent)",
+                  }}
+                >
+                  {formatPrice(getTotalPrice())}
+                </span>
+              </div>
+
+              {/* Checkout button */}
+              <button
+                className="btn-primary"
+                style={{ width: "100%", justifyContent: "center", padding: "12px" }}
+                onClick={handleCheckout}
+              >
+                Lanjut ke Checkout
+                <ArrowRight size={15} />
+              </button>
+            </div>
+          )}
         </SheetContent>
       </Sheet>
 
-      <CheckoutDialog open={showCheckout} onOpenChange={setShowCheckout} items={items} total={getTotalPrice()} />
+      {/* Checkout dialog — opened after sheet closes */}
+      <CheckoutDialog
+        open={showCheckout}
+        onOpenChange={setShowCheckout}
+        items={items}
+        total={getTotalPrice()}
+      />
     </>
   )
 }

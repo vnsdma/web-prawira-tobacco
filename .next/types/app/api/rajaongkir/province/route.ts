@@ -1,4 +1,4 @@
-// File: C:\Users\riduo\Downloads\New folder (3)\web prawira-tobacco\app\api\rajaongkir\province\route.ts
+// File: C:\Users\riduo\Downloads\New folder (3)\webp=\app\api\rajaongkir\province\route.ts
 import * as entry from '../../../../../../app/api/rajaongkir/province/route.js'
 import type { NextRequest } from 'next/server.js'
 

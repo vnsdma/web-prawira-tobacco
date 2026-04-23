@@ -1,7 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+// Pastikan Service Role Key ada untuk bypass RLS
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,60 +27,64 @@ export async function POST(request: NextRequest) {
 
     const result = await response.json()
     
-    // Ekstraksi status (Deep check)
-    const cashifyStatus = 
+    // Normalisasi status
+    const rawStatus = 
         result?.data?.data?.status || 
         result?.data?.status ||       
         result?.status || 
         'pending';
+    
+    const cashifyStatus = String(rawStatus).toLowerCase();
 
     console.log(`🔍 Check Status TransID ${transactionId}: ${cashifyStatus}`)
     
     let dbUpdateStatus = "No Update Needed";
+    let debugError = null; // Variable untuk menampung error agar muncul di Postman
 
-    // 2. Jika status PAID/SUCCESS, Lakukan Update DB & Kurangi Stok
-    if (['paid', 'success', 'settlement'].includes(cashifyStatus)) {
+    // 2. Jika status PAID/SUCCESS, Lakukan Update DB
+    if (['paid', 'success', 'settlement', 'completed'].includes(cashifyStatus)) {
         
-        // A. Ambil Data Order SAAT INI + Detail Item-nya
-        // Kita butuh order_items untuk tahu produk apa saja yang dibeli
+        // A. Ambil Data Order
         const { data: currentOrder, error: fetchError } = await supabase
             .from('orders')
-            .select('*, order_items(*)') // <--- Join ke order_items
+            .select('*, order_items(*)')
             .eq('transaction_id', transactionId)
             .single();
 
         if (fetchError || !currentOrder) {
-             console.error("❌ Order not found for stock reduction");
-             return NextResponse.json({ error: "Order not found" }, { status: 404 });
+             console.error("❌ Order not found:", fetchError);
+             return NextResponse.json({ 
+                 success: false, 
+                 error: "Order not found in DB associated with this Transaction ID",
+                 db_error: fetchError 
+             }, { status: 404 });
         }
 
-        // B. PENTING: Cek apakah status di DB sudah 'success' sebelumnya?
-        // Jika sudah success, STOP. Jangan kurangi stok lagi (Mencegah double deduction)
-        if (currentOrder.order_status === 'success' || currentOrder.order_status === 'paid') {
-            console.log("⚠️ Order already paid. Skipping stock reduction.");
+        // B. Cek apakah sudah pernah paid?
+        if (currentOrder.payment_status === 'paid' || currentOrder.order_status === 'success') {
             dbUpdateStatus = "Already Paid (Skipped)";
         } else {
-            // C. Update Status Order menjadi SUCCESS
+            // C. Lakukan Update
             const { error: updateError } = await supabase
                 .from('orders')
                 .update({ 
-                    order_status: 'success', // atau 'paid'
-                    payment_status: 'paid' 
+                    order_status: 'confirmed', 
+                    payment_status: 'paid',
+                    updated_at: new Date().toISOString()
                 })
                 .eq('transaction_id', transactionId);
 
             if (updateError) {
                 console.error("❌ Supabase Update Error:", updateError);
+                dbUpdateStatus = "Failed: DB Update Error";
+                debugError = updateError; // Tangkap errornya di sini
             } else {
                 console.log(`✅ Order ${transactionId} updated to SUCCESS`);
                 dbUpdateStatus = "Success";
 
-                // D. KURANGI STOK PRODUK (Looping Item)
+                // D. Kurangi Stok
                 if (currentOrder.order_items && currentOrder.order_items.length > 0) {
-                    console.log("📉 Reducing stock for items...");
-                    
                     for (const item of currentOrder.order_items) {
-                        // 1. Ambil stok produk saat ini
                         const { data: product } = await supabase
                             .from('products')
                             .select('id, in_stock')
@@ -84,16 +92,11 @@ export async function POST(request: NextRequest) {
                             .single();
 
                         if (product) {
-                            // 2. Hitung stok baru
-                            const newStock = product.in_stock - item.quantity;
-                            
-                            // 3. Update stok ke database
+                            const newStock = Math.max(0, product.in_stock - item.quantity);
                             await supabase
                                 .from('products')
                                 .update({ in_stock: newStock })
                                 .eq('id', item.product_id);
-                                
-                            console.log(`   - Product ${item.product_id}: ${product.in_stock} -> ${newStock}`);
                         }
                     }
                 }
@@ -105,11 +108,12 @@ export async function POST(request: NextRequest) {
         success: true,
         final_status: cashifyStatus,
         db_update: dbUpdateStatus,
+        error_detail: debugError, // Cek field ini di Postman nanti!
         original_data: result
     })
 
   } catch (error: any) {
     console.error("Check status error:", error)
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
+    return NextResponse.json({ error: "Internal Server Error", details: error.message }, { status: 500 })
   }
 }

@@ -3,6 +3,60 @@ import { createClient } from "@supabase/supabase-js"
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
+export async function GET(req: Request) {
+    try {
+      const { searchParams } = new URL(req.url)
+      const email = searchParams.get('email')
+  
+      if (!email) {
+        return NextResponse.json({ error: 'Email is required' }, { status: 400 })
+      }
+  
+      // Step A: Find the Customer ID associated with this email
+      const { data: customer } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('email', email)
+        .single()
+  
+      let query = supabase
+        .from('orders')
+        .select(`
+          *,
+          order_items (
+            id,
+            product_id,
+            product_name,
+            quantity,
+            unit_price,
+            total_price
+          )
+        `)
+        .order('created_at', { ascending: false })
+  
+      // Step B: Filter orders
+      // We check both 'customer_id' (new logic) AND 'customer_email' (legacy logic) to be safe
+      if (customer) {
+          query = query.or(`customer_id.eq.${customer.id},customer_email.eq.${email}`)
+      } else {
+          query = query.eq('customer_email', email)
+      }
+  
+      const { data: orders, error } = await query
+  
+      if (error) {
+          console.error("❌ Database Fetch Error:", error)
+          throw error
+      }
+  
+      return NextResponse.json(orders)
+  
+    } catch (error: any) {
+      console.error("🔥 Get Orders Exception:", error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+  }
+  
 export async function POST(req: Request) {
   try {
     const body = await req.json()
