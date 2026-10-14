@@ -5,6 +5,7 @@ import { Mail, Package, Clock, CheckCircle2, XCircle, Search, Copy, Check, Hash,
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
 import { Skeleton } from "@/components/ui/skeleton"
+import BiteshipTrackingWidget from "@/components/biteship-tracking-widget"
 
 export interface OrderItem {
   id: number
@@ -284,6 +285,13 @@ export function GuestOrderTracker() {
             </div>
           </div>
 
+          {/* Biteship Live Tracking Widget */}
+          <BiteshipTrackingWidget
+            orderNumber={order.order_number}
+            courierCode={order.shipping_service || order.courier || "jne"}
+            orderStatus={order.order_status}
+          />
+
           {/* Item Breakdown */}
           <div className="space-y-2">
             <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider block">
@@ -448,6 +456,13 @@ export default function OrderHistory() {
               <span>Waktu: {formatDate(order.created_at)}</span>
               <span>{order.shipping_service || order.courier || "Kurir"}</span>
             </div>
+
+            {/* Biteship Live Tracking Widget */}
+            <BiteshipTrackingWidget
+              orderNumber={order.order_number}
+              courierCode={order.shipping_service || order.courier || "jne"}
+              orderStatus={order.order_status}
+            />
 
             <div className="space-y-1.5 py-1">
               {order.order_items?.map((item) => (

@@ -5,8 +5,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useToast } from "@/hooks/use-toast"
 import { useCart } from "@/hooks/use-cart"
 import { useAuth } from "@/hooks/use-auth"
-import type { CartItem } from "@/hooks/use-cart"
 import { MapPin, User, Phone, Mail, ChevronDown, ChevronUp, Loader2, CheckCircle2, Download, RefreshCw, QrCode, CreditCard, Banknote, PackageCheck, Copy, Check, Store, Bike, Truck } from "lucide-react"
+import BiteshipAreaSelector from "@/components/biteship-area-selector"
+import type { BiteshipArea, BiteshipPricing } from "@/lib/biteship"
 
 /* ─── Types ──────────────────────────────────────────────────── */
 interface CheckoutDialogProps {
@@ -111,8 +112,11 @@ export default function CheckoutDialog({
   
   const [couriers] = useState(["jne", "pos", "tiki"])
   const [selectedCourier, setSelectedCourier] = useState("jne")
-  const [shippingServices, setShippingServices] = useState<any[]>([])
-  const [selectedShipping, setSelectedShipping] = useState("")
+  // Biteship Shipping States
+  const [selectedBiteshipArea, setSelectedBiteshipArea] = useState<BiteshipArea | null>(null)
+  const [biteshipPricing, setBiteshipPricing] = useState<BiteshipPricing[]>([])
+  const [selectedBiteshipRateIdx, setSelectedBiteshipRateIdx] = useState<string>("")
+  const [isCalculatingBiteship, setIsCalculatingBiteship] = useState(false)
   const [shippingCost, setShippingCost] = useState(0)
 
   // Total weight in grams (65g fallback for tobacco packaging buffer)
@@ -239,6 +243,54 @@ export default function CheckoutDialog({
     }
   }
 
+  /* ── Biteship Rate Handlers ── */
+  const fetchBiteshipRates = async (areaId: string) => {
+    setIsCalculatingBiteship(true)
+    setBiteshipPricing([])
+    setSelectedBiteshipRateIdx("")
+    setShippingCost(0)
+
+    try {
+      const res = await fetch("/api/biteship/rates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          destination_area_id: areaId,
+          items: items.map((i) => ({
+            name: i.name,
+            value: i.price,
+            weight: i.weight || 65,
+            quantity: i.quantity,
+          })),
+        }),
+      })
+      const data = await res.json()
+      if (data.pricing && Array.isArray(data.pricing)) {
+        setBiteshipPricing(data.pricing)
+        if (data.pricing.length > 0) {
+          setSelectedBiteshipRateIdx("0")
+          setShippingCost(data.pricing[0].price)
+        }
+      }
+    } catch (err) {
+      console.error("Biteship rates error:", err)
+      toast({ title: "Gagal memuat tarif ekspedisi Biteship", variant: "destructive" })
+    } finally {
+      setIsCalculatingBiteship(false)
+    }
+  }
+
+  const handleBiteshipAreaSelect = (area: BiteshipArea | null) => {
+    setSelectedBiteshipArea(area)
+    if (area) {
+      fetchBiteshipRates(area.id)
+    } else {
+      setBiteshipPricing([])
+      setSelectedBiteshipRateIdx("")
+      setShippingCost(0)
+    }
+  }
+
   /* ── Selection Handlers ── */
   const handleProvinceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value
@@ -355,11 +407,11 @@ export default function CheckoutDialog({
       return
     }
 
-    // Validasi tujuan ekspedisi reguler via RajaOngkir
-    if (deliveryMethod === "expedition" && (!selectedDistrict || !selectedShipping)) {
+    // Validasi tujuan ekspedisi reguler via Biteship
+    if (deliveryMethod === "expedition" && (!selectedBiteshipArea || !selectedBiteshipRateIdx)) {
       toast({
         title: "Pengiriman belum dipilih",
-        description: "Silakan pilih kecamatan dan layanan kurir ekspedisi.",
+        description: "Silakan cari kecamatan tujuan dan pilih layanan ekspedisi.",
         variant: "destructive",
       })
       return
@@ -378,11 +430,13 @@ export default function CheckoutDialog({
       } else if (deliveryMethod === "local") {
         courierName = "Kurir Lokal Area Sekitar Toko (Flat Rp 5.000)"
       } else {
-        provName = provinces.find(p => (p.id || p.province_id).toString() === selectedProvince)?.name || ""
-        cityName = cities.find(c => (c.id || c.city_id).toString() === selectedCity)?.name || ""
-        distName = districts.find(d => (d.id || d.subdistrict_id).toString() === selectedDistrict)?.name || ""
-        const serviceName = shippingServices[Number(selectedShipping)]?.service || ""
-        courierName = `${selectedCourier.toUpperCase()} - ${serviceName}`
+        provName = selectedBiteshipArea?.administrative_division_level_1_name || ""
+        cityName = selectedBiteshipArea?.administrative_division_level_2_name || ""
+        distName = selectedBiteshipArea?.administrative_division_level_3_name || ""
+        const selectedRate = biteshipPricing[Number(selectedBiteshipRateIdx)]
+        courierName = selectedRate
+          ? `${selectedRate.courier_name.toUpperCase()} - ${selectedRate.courier_service_name}`
+          : "JNE - Reguler"
       }
 
       const resolvedAddress =
@@ -839,110 +893,80 @@ export default function CheckoutDialog({
                   </div>
                 )}
 
-                {/* RajaOngkir Destination Form for Expedition */}
+                {/* Biteship Destination Form for Expedition */}
                 {deliveryMethod === "expedition" && (
-                  <div className="space-y-3 pt-2 border-t border-border/60">
-                    {/* Province */}
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium text-text-secondary block">
-                        Provinsi Tujuan <span className="text-destructive">*</span>
-                      </label>
-                      <select
-                        className="input-base text-xs"
-                        value={selectedProvince}
-                        onChange={handleProvinceChange}
-                        required
-                      >
-                        <option value="">Pilih Provinsi</option>
-                        {provinces.map((p) => (
-                          <option key={p.id || p.province_id} value={p.id || p.province_id}>
-                            {p.name || p.province}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                  <div className="space-y-3.5 pt-2 border-t border-border/60">
+                    {/* Autocomplete Area Search */}
+                    <BiteshipAreaSelector
+                      onSelectArea={handleBiteshipAreaSelect}
+                      selectedArea={selectedBiteshipArea}
+                      disabled={loading}
+                    />
 
-                    {/* City */}
-                    {cities.length > 0 && (
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium text-text-secondary block">
-                          Kota / Kabupaten Tujuan <span className="text-destructive">*</span>
-                        </label>
-                        <select
-                          className="input-base text-xs"
-                          value={selectedCity}
-                          onChange={handleCityChange}
-                          required
-                        >
-                          <option value="">Pilih Kota / Kabupaten</option>
-                          {cities.map((c) => (
-                            <option key={c.id || c.city_id} value={c.id || c.city_id}>
-                              {c.type} {c.name || c.city_name}
-                            </option>
-                          ))}
-                        </select>
+                    {/* Calculating Loader */}
+                    {isCalculatingBiteship && (
+                      <div className="p-3.5 rounded-xl bg-raised border border-border flex items-center justify-center gap-2 text-xs text-text-muted">
+                        <Loader2 size={15} className="text-accent animate-spin" />
+                        <span>Menghitung ongkir real-time ekspedisi Biteship...</span>
                       </div>
                     )}
 
-                    {/* District */}
-                    {districts.length > 0 && (
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium text-text-secondary block">
-                          Kecamatan Tujuan <span className="text-destructive">*</span>
+                    {/* Biteship Courier Services */}
+                    {!isCalculatingBiteship && biteshipPricing.length > 0 && (
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider block font-display">
+                          Pilihan Ekspedisi &amp; Layanan Pengiriman: <span className="text-destructive">*</span>
                         </label>
-                        <select
-                          className="input-base text-xs"
-                          value={selectedDistrict}
-                          onChange={handleDistrictChange}
-                          required
-                        >
-                          <option value="">Pilih Kecamatan</option>
-                          {districts.map((d) => (
-                            <option key={d.id || d.subdistrict_id} value={d.id || d.subdistrict_id}>
-                              {d.name || d.subdistrict_name}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                          {biteshipPricing.map((rate, idx) => {
+                            const isSelected = selectedBiteshipRateIdx === String(idx)
+                            return (
+                              <div
+                                key={idx}
+                                onClick={() => {
+                                  setSelectedBiteshipRateIdx(String(idx))
+                                  setShippingCost(rate.price)
+                                }}
+                                className={`p-2.5 rounded-xl border text-xs cursor-pointer transition-all flex items-center justify-between gap-2 ${
+                                  isSelected
+                                    ? "border-accent bg-accent/10 shadow-xs ring-1 ring-accent"
+                                    : "border-border bg-card hover:bg-raised text-text-secondary"
+                                }`}
+                              >
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-bold text-text-primary uppercase font-display">
+                                      {rate.courier_name}
+                                    </span>
+                                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-raised border border-border text-text-muted font-medium">
+                                      {rate.courier_service_name}
+                                    </span>
+                                  </div>
+                                  <span className="text-[10px] text-text-muted mt-0.5 block">
+                                    Estimasi tiba: {rate.duration || "1 - 3 hari"}
+                                  </span>
+                                </div>
+
+                                <div className="text-right flex-shrink-0">
+                                  <span className="font-bold font-display text-accent text-sm block">
+                                    {formatPrice(rate.price)}
+                                  </span>
+                                  {rate.available_for_instant_waybill_id && (
+                                    <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold block">
+                                      ⚡ Resi Otomatis
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
                       </div>
                     )}
 
-                    {/* Courier */}
-                    {selectedDistrict && (
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium text-text-secondary block">
-                          Ekspedisi Pengiriman
-                        </label>
-                        <select
-                          className="input-base text-xs"
-                          value={selectedCourier}
-                          onChange={handleCourierChange}
-                        >
-                          <option value="jne">JNE Express</option>
-                          <option value="pos">POS Indonesia</option>
-                          <option value="tiki">TIKI</option>
-                        </select>
-                      </div>
-                    )}
-
-                    {/* Service & Cost */}
-                    {shippingServices.length > 0 && (
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium text-text-secondary block">
-                          Pilihan Layanan & Ongkir <span className="text-destructive">*</span>
-                        </label>
-                        <select
-                          className="input-base text-xs font-medium"
-                          value={selectedShipping}
-                          onChange={handleServiceChange}
-                          required
-                        >
-                          <option value="">Pilih Layanan</option>
-                          {shippingServices.map((s, idx) => (
-                            <option key={idx} value={idx}>
-                              {s.service} ({s.cost[0]?.etd || "1-3"} hari) — {formatPrice(s.cost[0]?.value || 0)}
-                            </option>
-                          ))}
-                        </select>
+                    {!isCalculatingBiteship && selectedBiteshipArea && biteshipPricing.length === 0 && (
+                      <div className="p-3 text-center text-xs text-text-muted bg-raised rounded-xl border border-border">
+                        Tidak ada layanan ekspedisi yang tersedia untuk rute tujuan ini.
                       </div>
                     )}
                   </div>
