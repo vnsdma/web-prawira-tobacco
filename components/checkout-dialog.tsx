@@ -251,7 +251,7 @@ export default function CheckoutDialog({
     setShippingCost(0)
 
     try {
-      const res = await fetch("/api/biteship/rates", {
+      const res = await fetch("/api/biteship/rates/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

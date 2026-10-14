@@ -43,7 +43,7 @@ export default function BiteshipTrackingWidget({
     setIsLoading(true)
     try {
       const res = await fetch(
-        `/api/biteship/trackings/${encodeURIComponent(activeWaybill)}?courier=${courierCode.toLowerCase()}`
+        `/api/biteship/trackings/${encodeURIComponent(activeWaybill)}/?courier=${courierCode.toLowerCase()}`
       )
       const data = await res.json()
       if (data && data.success) {

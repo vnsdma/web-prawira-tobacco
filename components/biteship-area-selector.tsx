@@ -35,7 +35,7 @@ export default function BiteshipAreaSelector({
     let isCancelled = false
     setIsLoading(true)
 
-    fetch(`/api/biteship/maps/areas?input=${encodeURIComponent(debouncedQuery)}`)
+    fetch(`/api/biteship/maps/areas/?input=${encodeURIComponent(debouncedQuery)}`)
       .then((res) => res.json())
       .then((data) => {
         if (!isCancelled) {
