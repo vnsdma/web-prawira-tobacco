@@ -28,6 +28,7 @@ const config: Config = {
           DEFAULT:    "var(--bg-card)",
           foreground: "var(--text-primary)",
         },
+        raised: "var(--bg-raised)",
         primary: {
           DEFAULT:    "var(--accent)",
           foreground: "var(--accent-text)",
@@ -43,12 +44,25 @@ const config: Config = {
         accent: {
           DEFAULT:    "var(--accent)",
           foreground: "var(--accent-text)",
+          text:       "var(--accent-text)",
+          hover:      "var(--accent-hover)",
+          muted:      "var(--accent-muted)",
+          border:     "var(--accent-border)",
+        },
+        text: {
+          primary:   "var(--text-primary)",
+          secondary: "var(--text-secondary)",
+          muted:     "var(--text-muted)",
+          inverse:   "var(--text-inverse)",
         },
         destructive: {
           DEFAULT:    "var(--destructive)",
           foreground: "#ffffff",
         },
-        border: "var(--border)",
+        border: {
+          DEFAULT: "var(--border)",
+          strong:  "var(--border-strong)",
+        },
         input:  "var(--border)",
         ring:   "var(--accent)",
       },

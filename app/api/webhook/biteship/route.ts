@@ -29,13 +29,23 @@ export async function POST(req: Request) {
       mappedStatus = "on_delivery"
     }
 
-    // Update in Supabase
+    const referenceId = body.reference_id || orderId
+    if (!waybillId && !referenceId) {
+      return NextResponse.json({ message: "No order identifier or waybill provided" }, { status: 400 })
+    }
+
+    // Build targeted query - never execute without a filter
     let query = supabase.from("orders").update({
       order_status: mappedStatus === "completed" ? "completed" : "processing",
       notes: `[Biteship Webhook] Status: ${status} | Resi: ${waybillId || "-"} | Updated: ${new Date().toISOString()}`,
     })
 
-    if (waybillId) {
+    if (waybillId && referenceId) {
+      query = query.or(`order_number.eq.${referenceId},notes.ilike.%${waybillId}%,order_number.ilike.%${waybillId}%`)
+    } else if (referenceId) {
+      const isNum = /^\d+$/.test(String(referenceId))
+      query = isNum ? query.or(`order_number.eq.${referenceId},id.eq.${referenceId}`) : query.eq("order_number", referenceId)
+    } else if (waybillId) {
       query = query.or(`notes.ilike.%${waybillId}%,order_number.ilike.%${waybillId}%`)
     }
 

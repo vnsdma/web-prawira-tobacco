@@ -6,10 +6,11 @@ const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ Id: string }> }
 ) {
   try {
-    const id = params.id
+    const resolvedParams = await params
+    const id = resolvedParams.Id || (resolvedParams as any).id
 
     // 1. VALIDASI: Pastikan ID adalah angka yang valid
     if (!id || id === 'undefined' || id === 'null' || isNaN(Number(id))) {

@@ -1,14 +1,14 @@
 "use client"
 
 import type { ReactNode } from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useCart } from "@/hooks/use-cart"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, Truck, PackageCheck, Scale } from "lucide-react"
 import CheckoutDialog from "./checkout-dialog"
 
 interface CartSheetProps {
-  children: ReactNode
+  children?: ReactNode
 }
 
 function formatPrice(price: number) {
@@ -25,6 +25,13 @@ export default function CartSheet({ children }: CartSheetProps) {
   const { items, updateQuantity, removeItem, getTotalPrice, getTotalItems, getTotalWeight, addItem } = useCart()
   const [showCheckout, setShowCheckout] = useState(false)
   const [sheetOpen, setSheetOpen]       = useState(false)
+  const [mounted, setMounted]           = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const totalItems = mounted ? getTotalItems() : 0
 
   const subtotal = getTotalPrice()
   const totalWeight = getTotalWeight()
@@ -43,7 +50,16 @@ export default function CartSheet({ children }: CartSheetProps) {
   return (
     <>
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetTrigger asChild>{children}</SheetTrigger>
+        <SheetTrigger asChild>
+          {children ?? (
+            <button className="icon-btn" aria-label="Keranjang Belanja">
+              <ShoppingBag size={16} />
+              {totalItems > 0 && (
+                <span className="notif-dot">{totalItems}</span>
+              )}
+            </button>
+          )}
+        </SheetTrigger>
 
         <SheetContent
           side="right"
@@ -251,7 +267,7 @@ export default function CartSheet({ children }: CartSheetProps) {
                     </div>
 
                     <div className="flex items-center justify-between mt-2">
-                      <span className="font-display font-bold text-xs text-accent">
+                      <span className="font-sans font-bold text-xs text-accent tabular-nums">
                         {formatPrice(item.price * item.quantity)}
                       </span>
 
@@ -260,22 +276,22 @@ export default function CartSheet({ children }: CartSheetProps) {
                         <button
                           type="button"
                           onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
-                          className="w-6 h-6 rounded flex items-center justify-center text-text-secondary hover:bg-card transition-colors disabled:opacity-30"
+                          className="w-7 h-7 sm:w-8 sm:h-8 rounded flex items-center justify-center text-text-secondary hover:bg-card transition-colors disabled:opacity-30"
                           disabled={item.quantity <= 1}
                           aria-label="Kurangi jumlah"
                         >
-                          <Minus size={11} strokeWidth={2.5} />
+                          <Minus size={13} strokeWidth={2.5} />
                         </button>
-                        <span className="w-5 text-center font-display font-bold text-xs text-text-primary">
+                        <span className="w-6 text-center font-sans font-bold text-xs text-text-primary tabular-nums">
                           {item.quantity}
                         </span>
                         <button
                           type="button"
                           onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                          className="w-6 h-6 rounded flex items-center justify-center text-text-secondary hover:bg-card transition-colors"
+                          className="w-7 h-7 sm:w-8 sm:h-8 rounded flex items-center justify-center text-text-secondary hover:bg-card transition-colors"
                           aria-label="Tambah jumlah"
                         >
-                          <Plus size={11} strokeWidth={2.5} />
+                          <Plus size={13} strokeWidth={2.5} />
                         </button>
                       </div>
                     </div>
@@ -291,7 +307,7 @@ export default function CartSheet({ children }: CartSheetProps) {
               <div className="space-y-1.5 text-xs">
                 <div className="flex justify-between text-text-secondary">
                   <span>Subtotal Produk</span>
-                  <span>{formatPrice(subtotal)}</span>
+                  <span className="font-medium tabular-nums">{formatPrice(subtotal)}</span>
                 </div>
                 <div className="flex justify-between text-text-muted text-[11px]">
                   <span>Total Berat Paket</span>
@@ -301,9 +317,9 @@ export default function CartSheet({ children }: CartSheetProps) {
                   <span>Biaya Pengiriman</span>
                   <span>Dihitung saat checkout</span>
                 </div>
-                <div className="flex justify-between font-display font-bold text-sm text-text-primary pt-2 border-t border-border">
+                <div className="flex justify-between font-sans font-bold text-sm text-text-primary pt-2 border-t border-border">
                   <span>Estimasi Total</span>
-                  <span className="text-accent text-base">{formatPrice(subtotal)}</span>
+                  <span className="text-accent text-base tabular-nums">{formatPrice(subtotal)}</span>
                 </div>
               </div>
 

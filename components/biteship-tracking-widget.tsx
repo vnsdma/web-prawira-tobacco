@@ -37,9 +37,10 @@ export default function BiteshipTrackingWidget({
   const [showHistory, setShowHistory] = useState(false)
   const { toast } = useToast()
 
-  const activeWaybill = waybillId || `JP${orderNumber?.replace(/\D/g, "").slice(-9) || "982312456"}`
+  const activeWaybill = waybillId || ""
 
   const fetchTracking = async () => {
+    if (!activeWaybill) return
     setIsLoading(true)
     try {
       const res = await fetch(
@@ -57,7 +58,9 @@ export default function BiteshipTrackingWidget({
   }
 
   useEffect(() => {
-    fetchTracking()
+    if (activeWaybill) {
+      fetchTracking()
+    }
   }, [activeWaybill, courierCode])
 
   const copyWaybill = () => {
@@ -96,6 +99,20 @@ export default function BiteshipTrackingWidget({
     { label: "Dalam Perjalanan", desc: "Transit antar kota" },
     { label: "Tiba di Tujuan", desc: "Diterima pembeli" },
   ]
+
+  if (!activeWaybill) {
+    return (
+      <div className="rounded-2xl border border-border bg-card p-4 md:p-5 shadow-sm space-y-2 text-xs">
+        <div className="flex items-center gap-2 text-text-primary font-semibold">
+          <Truck size={16} className="text-accent" />
+          <span>Pengiriman Sedang Disiapkan</span>
+        </div>
+        <p className="text-text-muted text-[11px] leading-relaxed">
+          Nomor resi resmi ekspedisi akan otomatis muncul di sini segera setelah pesanan Anda dipacking dan diserahkan kepada pihak kurir.
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div className="rounded-2xl border border-accent/30 bg-gradient-to-br from-card via-raised/60 to-card p-4 md:p-5 shadow-sm space-y-4">

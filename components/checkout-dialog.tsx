@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
-import { useCart } from "@/hooks/use-cart"
+import { useCart, type CartItem } from "@/hooks/use-cart"
 import { useAuth } from "@/hooks/use-auth"
 import { MapPin, User, Phone, Mail, ChevronDown, ChevronUp, Loader2, CheckCircle2, Download, RefreshCw, QrCode, CreditCard, Banknote, PackageCheck, Copy, Check, Store, Bike, Truck } from "lucide-react"
 import BiteshipAreaSelector from "@/components/biteship-area-selector"
@@ -112,6 +112,8 @@ export default function CheckoutDialog({
   
   const [couriers] = useState(["jne", "pos", "tiki"])
   const [selectedCourier, setSelectedCourier] = useState("jne")
+  const [shippingServices, setShippingServices] = useState<any[]>([])
+  const [selectedShipping, setSelectedShipping] = useState("")
   // Biteship Shipping States
   const [selectedBiteshipArea, setSelectedBiteshipArea] = useState<BiteshipArea | null>(null)
   const [biteshipPricing, setBiteshipPricing] = useState<BiteshipPricing[]>([])
@@ -706,7 +708,7 @@ export default function CheckoutDialog({
 
                 <div className="p-3 border-t border-border bg-raised/40 flex justify-between items-center text-xs">
                   <span className="text-text-muted">Subtotal Produk</span>
-                  <span className="font-bold font-display text-text-primary">{formatPrice(subtotal)}</span>
+                  <span className="font-bold font-sans tabular-nums text-text-primary">{formatPrice(subtotal)}</span>
                 </div>
               </div>
 
@@ -948,7 +950,7 @@ export default function CheckoutDialog({
                                 </div>
 
                                 <div className="text-right flex-shrink-0">
-                                  <span className="font-bold font-display text-accent text-sm block">
+                                  <span className="font-bold font-sans tabular-nums text-accent text-sm block">
                                     {formatPrice(rate.price)}
                                   </span>
                                   {rate.available_for_instant_waybill_id && (
@@ -977,7 +979,7 @@ export default function CheckoutDialog({
               <div className="p-3.5 rounded-xl bg-raised border border-border space-y-1 text-xs">
                 <div className="flex justify-between text-text-muted">
                   <span>Subtotal Belanja</span>
-                  <span>{formatPrice(subtotal)}</span>
+                  <span className="font-medium font-sans tabular-nums text-text-primary">{formatPrice(subtotal)}</span>
                 </div>
                 <div className="flex justify-between text-text-muted">
                   <span>Metode Pengiriman</span>
@@ -995,15 +997,15 @@ export default function CheckoutDialog({
                     {deliveryMethod === "pickup" ? (
                       <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Gratis (Rp 0)</span>
                     ) : effectiveShippingCost > 0 ? (
-                      formatPrice(effectiveShippingCost)
+                      <span className="font-medium font-sans tabular-nums text-text-primary">{formatPrice(effectiveShippingCost)}</span>
                     ) : (
                       "Pilih pengiriman"
                     )}
                   </span>
                 </div>
-                <div className="flex justify-between items-center pt-2 border-t border-border font-display">
-                  <span className="font-bold text-sm text-text-primary">Total Akhir:</span>
-                  <span className="font-bold text-base text-accent">{formatPrice(finalTotalAmount)}</span>
+                <div className="flex justify-between items-center pt-2 border-t border-border">
+                  <span className="font-bold text-sm text-text-primary font-display">Total Akhir:</span>
+                  <span className="font-bold text-base text-accent font-sans tabular-nums">{formatPrice(finalTotalAmount)}</span>
                 </div>
               </div>
 

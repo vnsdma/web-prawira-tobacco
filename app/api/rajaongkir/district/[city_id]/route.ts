@@ -4,10 +4,10 @@ const RAJAONGKIR_API_KEY = process.env.RAJAONGKIR_API_KEY!
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { city_id: string } }
+  { params }: { params: Promise<{ city_id: string }> }
 ) {
   try {
-    const { city_id } = params
+    const { city_id } = await params
 
     if (!city_id) {
       return NextResponse.json({ 

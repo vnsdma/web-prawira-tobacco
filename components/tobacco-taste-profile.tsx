@@ -12,14 +12,14 @@ interface TobaccoTasteProfileProps {
 
 function MeterBar({ score, max = 5, colorClass = "bg-accent" }: { score: number; max?: number; colorClass?: string }) {
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-1">
       {Array.from({ length: max }).map((_, i) => {
         const isFilled = i < score
         return (
           <div
             key={i}
-            className={`h-2 flex-1 rounded-sm transition-all ${
-              isFilled ? colorClass : "bg-raised border border-border"
+            className={`h-1.5 flex-1 rounded-xs transition-all ${
+              isFilled ? colorClass : "bg-raised border border-border/60"
             }`}
           />
         )
@@ -36,12 +36,12 @@ export default function TobaccoTasteProfile({ product }: TobaccoTasteProfileProp
   const waLink = getProductTasteInquiryLink(product.name)
 
   return (
-    <div className="rounded-xl border border-accent/30 bg-raised/50 p-4 space-y-4">
+    <div className="rounded-xl border border-accent/25 bg-raised/40 p-3 sm:p-3.5 space-y-2.5">
       {/* Title */}
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
-            <Sparkles size={14} />
+        <div className="flex items-center gap-1.5">
+          <div className="w-5 h-5 rounded-md bg-accent/10 flex items-center justify-center text-accent">
+            <Sparkles size={12} />
           </div>
           <h3 className="font-display font-bold text-xs uppercase tracking-wider text-text-primary">
             Karakter &amp; Profil Rasa
@@ -54,28 +54,28 @@ export default function TobaccoTasteProfile({ product }: TobaccoTasteProfileProp
         )}
       </div>
 
-      {/* Visual Meters Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      {/* Visual Meters Grid (Compact 3-columns across mobile & desktop) */}
+      <div className="grid grid-cols-3 gap-1.5 sm:gap-2.5">
         {/* Throat Hit */}
-        <div className="bg-card border border-border/80 rounded-lg p-3 space-y-1.5">
-          <div className="flex items-center justify-between text-[11px]">
-            <span className="text-text-muted flex items-center gap-1">
-              <Wind size={12} className="text-accent" />
-              <span>Tarikan (Throat Hit)</span>
+        <div className="bg-card border border-border/80 rounded-lg p-2 sm:p-2.5 space-y-1">
+          <div className="flex items-center justify-between text-[10px] sm:text-[11px]">
+            <span className="text-text-muted flex items-center gap-1 truncate">
+              <Wind size={11} className="text-accent flex-shrink-0" />
+              <span className="truncate">Tarikan</span>
             </span>
-            <span className="font-semibold text-text-primary">{profile.throatHit}</span>
+            <span className="font-semibold text-text-primary truncate ml-1">{profile.throatHit}</span>
           </div>
           <MeterBar score={profile.throatHitScore} max={5} colorClass="bg-amber-600" />
         </div>
 
         {/* Aroma Intensity */}
-        <div className="bg-card border border-border/80 rounded-lg p-3 space-y-1.5">
-          <div className="flex items-center justify-between text-[11px]">
-            <span className="text-text-muted flex items-center gap-1">
-              <Flame size={12} className="text-accent" />
-              <span>Aroma</span>
+        <div className="bg-card border border-border/80 rounded-lg p-2 sm:p-2.5 space-y-1">
+          <div className="flex items-center justify-between text-[10px] sm:text-[11px]">
+            <span className="text-text-muted flex items-center gap-1 truncate">
+              <Flame size={11} className="text-accent flex-shrink-0" />
+              <span className="truncate">Aroma</span>
             </span>
-            <span className="font-semibold text-text-primary truncate max-w-[100px]" title={profile.aroma}>
+            <span className="font-semibold text-text-primary truncate ml-1" title={profile.aroma}>
               {profile.aroma}
             </span>
           </div>
@@ -83,13 +83,13 @@ export default function TobaccoTasteProfile({ product }: TobaccoTasteProfileProp
         </div>
 
         {/* Cooling Effect */}
-        <div className="bg-card border border-border/80 rounded-lg p-3 space-y-1.5">
-          <div className="flex items-center justify-between text-[11px]">
-            <span className="text-text-muted flex items-center gap-1">
-              <ThermometerSnowflake size={12} className="text-sky-500" />
-              <span>Sensasi Dingin</span>
+        <div className="bg-card border border-border/80 rounded-lg p-2 sm:p-2.5 space-y-1">
+          <div className="flex items-center justify-between text-[10px] sm:text-[11px]">
+            <span className="text-text-muted flex items-center gap-1 truncate">
+              <ThermometerSnowflake size={11} className="text-sky-500 flex-shrink-0" />
+              <span className="truncate">Dingin</span>
             </span>
-            <span className="font-semibold text-text-primary">{profile.cooling}</span>
+            <span className="font-semibold text-text-primary truncate ml-1">{profile.cooling}</span>
           </div>
           <MeterBar score={profile.coolingScore} max={5} colorClass="bg-sky-500" />
         </div>

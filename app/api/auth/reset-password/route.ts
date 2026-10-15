@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Verify OTP:
-    // Check Case A: Dynamic OTP generated during step 1
+    // Dynamic OTP generated during forgot password step
     const otpHash = computeOtpHash(user.email, cleanOtp)
     const dynamicTokenKey = `password_reset:${otpHash}`
 
@@ -71,26 +71,7 @@ export async function POST(request: NextRequest) {
       .gt("expires_at", new Date().toISOString())
       .single()
 
-    // Check Case B: Admin Master Verification PIN provided by Admin Toko via WhatsApp
-    const adminPin = process.env.ADMIN_RESET_PIN
-    let isAdminPinValid = false
-
-    if (adminPin && cleanOtp === adminPin.trim()) {
-      // Must also have an active unexpired reset session for this user to ensure step 1 was completed
-      const { data: pendingSessions } = await supabase
-        .from("user_sessions")
-        .select("id")
-        .eq("user_id", user.id)
-        .like("session_token", "password_reset:%")
-        .gt("expires_at", new Date().toISOString())
-        .limit(1)
-
-      if (pendingSessions && pendingSessions.length > 0) {
-        isAdminPinValid = true
-      }
-    }
-
-    if (!dynamicSession && !isAdminPinValid) {
+    if (!dynamicSession) {
       return NextResponse.json(
         { message: "Kode Verifikasi OTP tidak valid atau telah kedaluwarsa. Silakan minta kode verifikasi baru ke Admin Toko." },
         { status: 400 }

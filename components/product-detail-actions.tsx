@@ -9,16 +9,9 @@ import {
   ArrowRight,
   MessageCircle,
   Flame,
-  Sparkles,
   Layers,
-  CheckSquare,
-  Square,
   PackagePlus,
-  ShieldAlert,
-  BookOpen,
-  ChevronRight,
 } from "lucide-react"
-import Link from "next/link"
 import { useCart, type CartItem } from "@/hooks/use-cart"
 import { useToast } from "@/hooks/use-toast"
 import CartSheet from "@/components/cart-sheet"
@@ -27,7 +20,6 @@ import {
   getProductVariants,
   calculateVariantPrice,
   QUICK_ADDONS,
-  getSimilarityGrade,
   type ProductVariant,
 } from "@/lib/product-catalog"
 
@@ -219,33 +211,17 @@ export default function ProductDetailActions({ product }: { product: Product }) 
     setTimeout(() => setJustAdded(false), 1500)
   }
 
-  const similarityGrade = getSimilarityGrade(product)
-
   return (
-    <div className="space-y-5 pt-4 border-t border-border">
-      {/* ─── 1. DYNAMIC PRICE & SIMILARITY BADGE ────────────────── */}
-      <div className="p-3.5 rounded-xl bg-raised/60 border border-border flex items-center justify-between gap-3">
-        <div>
-          <span className="text-[11px] text-text-muted block">
-            Harga ({selectedVariant?.name || "Satuan"}):
+    <div className="space-y-4">
+      {/* ─── 1. DYNAMIC PRICE ────────────────── */}
+      <div className="flex items-baseline gap-2 pt-0.5">
+        <span className="font-display font-bold text-2xl sm:text-3xl text-accent">
+          {formatPrice(currentTobaccoPrice)}
+        </span>
+        {selectedVariant && !isAccessory && (
+          <span className="text-xs text-text-muted font-medium">
+            / {selectedVariant.name}
           </span>
-          <span className="font-display font-bold text-2xl text-accent">
-            {formatPrice(currentTobaccoPrice)}
-          </span>
-        </div>
-
-        {similarityGrade && (
-          <div className="text-right">
-            <span
-              className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg border ${similarityGrade.bgClass} ${similarityGrade.textClass} ${similarityGrade.borderClass} shadow-xs`}
-            >
-              <Sparkles size={12} />
-              <span>{similarityGrade.fullBadge}</span>
-            </span>
-            <span className="block text-[10px] text-text-muted mt-0.5">
-              Tingkat Kemiripan Rasa
-            </span>
-          </div>
         )}
       </div>
 
@@ -488,30 +464,18 @@ export default function ProductDetailActions({ product }: { product: Product }) 
         )}
       </div>
 
-      {/* ─── 6. GUIDE LINK: CARA MELINTING ───────────────────── */}
-      <Link
-        href="/#cara-melinting"
-        className="w-full py-2.5 px-3.5 rounded-xl border border-border bg-raised/50 hover:bg-raised text-text-secondary hover:text-accent font-medium text-xs flex items-center justify-between transition-colors group cursor-pointer"
-      >
-        <span className="flex items-center gap-2">
-          <BookOpen size={14} className="text-accent" />
-          <span>Belum tahu cara melintingnya? Baca Panduan Tiap Alat</span>
-        </span>
-        <ChevronRight size={14} className="text-text-muted group-hover:text-accent" />
-      </Link>
-
-      {/* ─── 7. DIRECT WHATSAPP CONCIERGE BUTTON ───────────────── */}
-      <a
-        href={getProductTasteInquiryLink(
-          `${product.name} (${selectedVariant?.name || "50gr"})`
-        )}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="w-full py-2.5 px-4 rounded-xl border border-emerald-600/30 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-semibold text-xs flex items-center justify-center gap-2 transition-colors"
-      >
-        <MessageCircle size={15} className="text-emerald-600" />
-        <span>Konsultasi / Tanya Rasa Produk Ini via WA</span>
-      </a>
+      {/* Accessory WhatsApp consultation fallback */}
+      {isAccessory && (
+        <a
+          href={getProductTasteInquiryLink(product.name)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full py-2.5 px-4 rounded-xl border border-emerald-600/30 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-semibold text-xs flex items-center justify-center gap-2 transition-colors"
+        >
+          <MessageCircle size={15} className="text-emerald-600" />
+          <span>Tanya Info Produk Ini via WA</span>
+        </a>
+      )}
     </div>
   )
 }

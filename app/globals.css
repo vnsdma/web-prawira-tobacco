@@ -25,7 +25,7 @@
   /* Typography: WCAG AA & AAA compliant contrast */
   --text-primary:    #1e1b18;
   --text-secondary:  #57514a;
-  --text-muted:      #787168;
+  --text-muted:      #635d55;
   --text-inverse:    #f8f7f5;
 
   /* Navigation */
@@ -78,7 +78,7 @@
 
   --text-primary:    #f2f4f7;
   --text-secondary:  #9aa1af;
-  --text-muted:      #7b8291;
+  --text-muted:      #949baa;
   --text-inverse:    #121316;
 
   --nav-bg:          #16181d;
@@ -180,48 +180,12 @@ body {
   background-color: var(--bg);
   display: flex;
   flex-direction: column;
+  width: 100%;
 }
 
-@media (min-width: 768px) {
-  .app-shell {
-    display: grid;
-    grid-template-columns: var(--sidebar-w) 1fr;
-  }
-}
-
-@media (min-width: 1280px) {
-  .app-shell {
-    grid-template-columns: var(--sidebar-w-lg) 1fr;
-  }
-}
-
-/* ─── SIDEBAR ───────────────────────────────────────────────────── */
+/* ─── SIDEBAR (DISABLED IN FAVOR OF FULL TOPBAR) ────────────────── */
 .sidebar {
-  display: none;
-}
-
-@media (min-width: 768px) {
-  .sidebar {
-    display: flex;
-    flex-direction: column;
-    background-color: var(--nav-bg);
-    border-right: 1px solid var(--nav-border);
-    padding: 24px 16px;
-    position: sticky;
-    top: 0;
-    height: 100dvh;
-    overflow-y: auto;
-    width: var(--sidebar-w);
-    flex-shrink: 0;
-    z-index: 40;
-  }
-}
-
-@media (min-width: 1280px) {
-  .sidebar {
-    width: var(--sidebar-w-lg);
-    padding: 28px 20px;
-  }
+  display: none !important;
 }
 
 .sidebar-logo {
@@ -280,6 +244,8 @@ body {
 .main-content {
   width: 100%;
   min-width: 0;
+  max-width: 1440px;
+  margin: 0 auto;
   overflow-x: hidden;
   padding-bottom: 84px;
 }
@@ -290,29 +256,32 @@ body {
   }
 }
 
-/* ─── STICKY HEADER ─────────────────────────────────────────────── */
+/* ─── STICKY HEADER (TOPBAR) ────────────────────────────────────── */
 .page-header {
   position: sticky;
   top: 0;
-  z-index: 30;
-  background-color: rgba(248, 247, 245, 0.88);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  z-index: 40;
+  background-color: rgba(248, 247, 245, 0.94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--border);
-  padding: 12px 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  padding: 10px 16px;
+  width: 100%;
 }
 
 .dark .page-header {
-  background-color: rgba(18, 19, 22, 0.88);
+  background-color: rgba(18, 19, 22, 0.94);
 }
 
 @media (min-width: 768px) {
   .page-header {
-    padding: 16px 28px;
+    padding: 12px 24px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .page-header {
+    padding: 14px 32px;
   }
 }
 
@@ -523,12 +492,22 @@ body {
   border: 1px solid var(--border);
   color: var(--text-primary);
   font-family: inherit;
-  font-size: 13.5px;
+  font-size: 14px;
   line-height: 1.4;
   transition: border-color var(--duration) var(--ease), box-shadow var(--duration) var(--ease), background-color var(--duration) var(--ease);
   outline: none;
   -webkit-appearance: none;
   appearance: none;
+}
+
+/* Prevent iOS Safari auto-zoom on mobile inputs (minimum 16px font size on touch devices) */
+@media (max-width: 767px) {
+  .input-base,
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
 }
 
 /* Ensure padding for inputs with icons is never overridden by .input-base */
@@ -543,30 +522,13 @@ input.pr-9 {
   padding-right: 38px !important;
 }
 
-/* Soft, accessible placeholder hint when idle */
+/* Accessible placeholder hint when empty */
 .input-base::placeholder,
 input::placeholder,
 textarea::placeholder {
   color: var(--text-muted);
-  opacity: 0.65;
+  opacity: 0.75;
   transition: opacity 150ms var(--ease), color 150ms var(--ease);
-}
-
-/* CRITICAL: Instantly clear placeholder on focus so it NEVER overlaps or obstructs typing */
-.input-base:focus::placeholder,
-input:focus::placeholder,
-textarea:focus::placeholder {
-  color: transparent !important;
-  opacity: 0 !important;
-}
-
-/* CRITICAL: Ensure placeholder is 100% invisible whenever text has been entered */
-.input-base:not(:placeholder-shown)::placeholder,
-input:not(:placeholder-shown)::placeholder,
-textarea:not(:placeholder-shown)::placeholder {
-  color: transparent !important;
-  opacity: 0 !important;
-  visibility: hidden !important;
 }
 
 .input-base:focus {
@@ -610,7 +572,7 @@ input:-webkit-autofill:focus {
 .h-scroll {
   display: flex;
   gap: 8px;
-  padding: 0 16px;
+  padding: 4px 16px;
   overflow-x: auto;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
@@ -626,7 +588,7 @@ input:-webkit-autofill:focus {
 
 @media (min-width: 768px) {
   .h-scroll {
-    padding: 0 28px;
+    padding: 4px 28px;
   }
 }
 
@@ -700,6 +662,14 @@ input:-webkit-autofill:focus {
 }
 
 /* ─── UTILITY HELPERS ───────────────────────────────────────────── */
+.text-accent-text {
+  color: var(--accent-text) !important;
+}
+
+.bg-accent-text {
+  background-color: var(--accent-text) !important;
+}
+
 .font-display {
   font-family: var(--font-syne, sans-serif);
 }

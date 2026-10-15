@@ -23,7 +23,7 @@ function PaymentStatusContent() {
         setStatus("failed")
       }
     } else {
-      setStatus("success")
+      setStatus("pending")
     }
   }, [transactionStatus])
 

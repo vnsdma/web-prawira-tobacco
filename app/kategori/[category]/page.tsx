@@ -125,24 +125,22 @@ export default async function CategoryPage({ params }: PageProps) {
 
       {/* Header */}
       <header className="page-header border-b border-border">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-text-muted hover:text-text-primary px-2.5 py-1.5 rounded-lg border border-border bg-card"
-          >
-            <ArrowLeft size={14} />
-            <span>Beranda</span>
-          </Link>
-          <span className="font-display font-bold text-sm tracking-tight text-text-primary">
-            PRAWIRA<span className="text-accent">.</span>
-          </span>
-        </div>
+        <div className="max-w-6xl mx-auto flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-text-muted hover:text-text-primary px-2.5 py-1.5 rounded-lg border border-border bg-card transition-colors hover:border-accent"
+            >
+              <ArrowLeft size={14} />
+              <span>Beranda</span>
+            </Link>
+            <Link href="/" className="font-display font-bold text-sm tracking-tight text-text-primary">
+              PRAWIRA<span className="text-accent">.</span>
+            </Link>
+          </div>
 
-        <CartSheet>
-          <button className="icon-btn" aria-label="Keranjang Belanja">
-            <ShoppingBag size={16} />
-          </button>
-        </CartSheet>
+          <CartSheet />
+        </div>
       </header>
 
       {/* Main Content */}

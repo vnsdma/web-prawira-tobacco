@@ -60,6 +60,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: 'Order not found' }, { status: 404 });
     }
 
+    // Verifikasi nominal pembayaran sesuai dengan tagihan di database
+    const expectedAmount = Math.round(Number(existingOrder.final_amount || existingOrder.total_amount));
+    const paidAmount = Math.round(Number(grossAmount));
+    if (newStatus === 'paid' && expectedAmount > 0 && paidAmount !== expectedAmount) {
+      console.error(`❌ Midtrans Amount Mismatch for order ${orderId}: Expected Rp${expectedAmount}, received Rp${paidAmount}`);
+      return NextResponse.json({ message: 'Payment amount mismatch' }, { status: 400 });
+    }
+
     // Hindari duplikasi pemotongan stok jika sudah pernah dibayar
     const wasAlreadyPaid = existingOrder.payment_status === 'paid';
 

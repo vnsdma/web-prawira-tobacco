@@ -223,8 +223,6 @@ export async function POST(req: Request) {
 
       if (!isNaN(clientPrice) && validPrices.includes(clientPrice)) {
         verifiedUnitPrice = clientPrice
-      } else if (!isNaN(clientPrice) && clientPrice > 0 && clientPrice >= base100g * 0.25 && clientPrice <= base100g * 2.2) {
-        verifiedUnitPrice = clientPrice
       }
 
       const verifiedTotalPrice = verifiedUnitPrice * quantity
@@ -240,20 +238,58 @@ export async function POST(req: Request) {
     }
 
     const verifiedShippingCost = Math.max(0, Math.round(Number(body.shipping_cost || 0)))
-    const verifiedDiscount = Math.max(0, Math.round(Number(body.discount || 0)))
+    
+    // Server-side promo verification - never trust client discount blindly
+    let verifiedDiscount = 0
+    if (body.promo_code && typeof body.promo_code === "string") {
+      const { data: promo } = await supabase
+        .from("promos")
+        .select("*")
+        .eq("code", body.promo_code.trim().toUpperCase())
+        .eq("is_active", true)
+        .single()
+
+      if (promo) {
+        const now = new Date()
+        const validFrom = new Date(promo.valid_from)
+        const validUntil = new Date(promo.valid_until)
+        const isNotExpired = now >= validFrom && now <= validUntil
+        const withinLimit = !promo.usage_limit || promo.used_count < promo.usage_limit
+        const minMet = verifiedSubtotal >= (promo.min_purchase || 0)
+
+        if (isNotExpired && withinLimit && minMet) {
+          if (promo.discount_type === "percentage") {
+            verifiedDiscount = Math.round((verifiedSubtotal * Number(promo.discount_value)) / 100)
+            if (promo.max_discount && verifiedDiscount > promo.max_discount) {
+              verifiedDiscount = promo.max_discount
+            }
+          } else {
+            verifiedDiscount = Math.round(Number(promo.discount_value || 0))
+          }
+        }
+      }
+    }
+
     const verifiedTotalAmount = Math.max(0, verifiedSubtotal + verifiedShippingCost - verifiedDiscount)
 
-    // ============================================================
-    // LANGKAH 2: RESOLVE CUSTOMER ID
-    // ============================================================
     let resolvedCustomerId = null
+    const token = extractBearerToken(req)
+    let authenticatedUserId: number | null = null
+    if (token) {
+      try {
+        const decoded = verifyAuthToken(token)
+        authenticatedUserId = decoded.userId
+      } catch {}
+    }
 
-    if (body.user_id) {
+    const effectiveUserId = authenticatedUserId || (body.user_id ? Number(body.user_id) : null)
+
+    if (effectiveUserId) {
       // 1. Ambil data User jika login
       const { data: userData } = await supabase
         .from('users')
         .select('*')
-        .eq('id', body.user_id)
+        .eq('id', effectiveUserId)
         .single()
 
       if (userData) {
@@ -376,6 +412,8 @@ export async function POST(req: Request) {
         
     if (itemsError) {
       console.error("❌ Error inserting items:", itemsError)
+      await supabase.from('orders').delete().eq('id', order.id)
+      return NextResponse.json({ error: "Gagal menyimpan rincian produk pesanan." }, { status: 500 })
     }
 
     return NextResponse.json({ 

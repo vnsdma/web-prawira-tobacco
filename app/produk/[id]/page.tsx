@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@supabase/supabase-js"
-import { ArrowLeft, CheckCircle2, Package, ShieldCheck, Truck, ShoppingBag, Flame, Sparkles } from "lucide-react"
+import { ArrowLeft, CheckCircle2, Package, ShieldCheck, Truck, ShoppingBag, Flame, Sparkles, BookOpen, ChevronRight } from "lucide-react"
 import ProductDetailActions from "@/components/product-detail-actions"
 import CartSheet from "@/components/cart-sheet"
 import TobaccoTasteProfile from "@/components/tobacco-taste-profile"
@@ -146,28 +146,26 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
       {/* Top Header */}
       <header className="page-header border-b border-border">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-text-muted hover:text-text-primary px-2.5 py-1.5 rounded-lg border border-border bg-card"
-          >
-            <ArrowLeft size={14} />
-            <span>Kembali</span>
-          </Link>
-          <span className="font-display font-bold text-sm tracking-tight text-text-primary">
-            PRAWIRA<span className="text-accent">.</span>
-          </span>
-        </div>
+        <div className="max-w-6xl mx-auto flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-text-muted hover:text-text-primary px-2.5 py-1.5 rounded-lg border border-border bg-card transition-colors hover:border-accent"
+            >
+              <ArrowLeft size={14} />
+              <span>Kembali</span>
+            </Link>
+            <Link href="/" className="font-display font-bold text-sm tracking-tight text-text-primary">
+              PRAWIRA<span className="text-accent">.</span>
+            </Link>
+          </div>
 
-        <CartSheet>
-          <button className="icon-btn" aria-label="Keranjang Belanja">
-            <ShoppingBag size={16} />
-          </button>
-        </CartSheet>
+          <CartSheet />
+        </div>
       </header>
 
       {/* Main Content Container */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-8">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-5 space-y-6">
         {/* Breadcrumb Navigation */}
         <nav aria-label="Breadcrumb" className="text-xs text-text-muted flex items-center gap-1.5 flex-wrap">
           <Link href="/" className="hover:text-text-primary hover:underline">
@@ -181,44 +179,78 @@ export default async function ProductDetailPage({ params }: PageProps) {
           <span className="text-text-primary font-medium truncate max-w-xs">{product.name}</span>
         </nav>
 
-        {/* Product Details Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-card border border-border rounded-2xl p-5 md:p-8 shadow-sm">
-          {/* Product Image */}
-          <div className="relative aspect-square rounded-xl bg-raised border border-border overflow-hidden flex items-center justify-center">
-            {product.image_url ? (
-              <img
-                src={product.image_url}
-                alt={`Jual ${product.name} - Prawira Tobacco`}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="flex flex-col items-center text-text-muted">
-                <Package size={48} className="opacity-40 mb-2" />
-                <span className="text-xs font-medium">Prawira Tobacco</span>
-              </div>
-            )}
-
-            {/* Status Badges */}
-            <div className="absolute top-3 left-3 flex flex-col gap-1.5">
-              {outOfStock ? (
-                <span className="badge badge-muted text-xs px-2.5 py-1 rounded shadow-sm">
-                  Stok Habis
-                </span>
-              ) : lowStock ? (
-                <span className="badge badge-soft text-xs px-2.5 py-1 rounded flex items-center gap-1 shadow-sm font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
-                  <Flame size={12} className="text-amber-500" /> Sisa {product.in_stock} (Stok Terbatas)
-                </span>
+        {/* Product Details Section: 12-col grid with sticky media column */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 lg:gap-8 bg-card border border-border rounded-2xl p-4 sm:p-6 shadow-sm items-start">
+          {/* Left Column: Sticky Image & Trust Signals */}
+          <div className="md:col-span-5 md:sticky md:top-20 space-y-3">
+            <div className="relative aspect-square rounded-xl bg-raised border border-border overflow-hidden flex items-center justify-center">
+              {product.image_url ? (
+                <img
+                  src={product.image_url}
+                  alt={`Jual ${product.name} - Prawira Tobacco`}
+                  className="w-full h-full object-cover"
+                />
               ) : (
-                <span className="badge badge-accent text-xs px-2.5 py-1 rounded shadow-sm font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
-                  Stok Selalu Ready
-                </span>
+                <div className="flex flex-col items-center text-text-muted">
+                  <Package size={48} className="opacity-40 mb-2" />
+                  <span className="text-xs font-medium">Prawira Tobacco</span>
+                </div>
               )}
+
+              {/* Status Badges */}
+              <div className="absolute top-2.5 left-2.5 flex flex-col gap-1 z-10">
+                {outOfStock ? (
+                  <span className="badge badge-muted text-xs px-2.5 py-1 rounded shadow-sm">
+                    Stok Habis
+                  </span>
+                ) : lowStock ? (
+                  <span className="badge badge-soft text-xs px-2.5 py-1 rounded flex items-center gap-1 shadow-sm font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                    <Flame size={12} className="text-amber-500" /> Sisa {product.in_stock} (Stok Terbatas)
+                  </span>
+                ) : (
+                  <span className="badge badge-accent text-xs px-2.5 py-1 rounded shadow-sm font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+                    Stok Selalu Ready
+                  </span>
+                )}
+              </div>
             </div>
+
+            {/* Key Trust Signals Under Image */}
+            <div className="grid grid-cols-2 gap-2 p-3 rounded-xl bg-raised/50 border border-border text-[11px] text-text-muted">
+              <div className="flex items-center gap-1.5">
+                <CheckCircle2 size={13} className="text-emerald-600 flex-shrink-0" />
+                <span>100% Produk Asli</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Truck size={13} className="text-accent flex-shrink-0" />
+                <span>Ongkir Otomatis</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <ShieldCheck size={13} className="text-accent flex-shrink-0" />
+                <span>Packing Higienis</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Package size={13} className="text-emerald-600 flex-shrink-0" />
+                <span>Stok Terverifikasi</span>
+              </div>
+            </div>
+
+            {/* Guide Link: Cara Melinting */}
+            <Link
+              href="/#cara-melinting"
+              className="w-full py-2 px-3 rounded-xl border border-border bg-raised/40 hover:bg-raised text-text-secondary hover:text-accent font-medium text-[11px] flex items-center justify-between transition-colors group cursor-pointer"
+            >
+              <span className="flex items-center gap-1.5">
+                <BookOpen size={13} className="text-accent" />
+                <span>Panduan Melinting Tiap Alat</span>
+              </span>
+              <ChevronRight size={13} className="text-text-muted group-hover:text-accent" />
+            </Link>
           </div>
 
-          {/* Product Information */}
-          <div className="flex flex-col justify-between space-y-5">
-            <div className="space-y-3">
+          {/* Right Column: Title, Actions, Taste Profile, Description */}
+          <div className="md:col-span-7 flex flex-col space-y-4">
+            <div className="space-y-1.5">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="badge badge-soft text-xs">
                   {categoryName}
@@ -227,70 +259,38 @@ export default async function ProductDetailPage({ params }: PageProps) {
                   const grade = getSimilarityGrade(product)
                   if (!grade) return null
                   return (
-                    <div className="w-full space-y-1 mt-1">
-                      <span
-                        className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${grade.bgClass} ${grade.textClass} ${grade.borderClass} shadow-xs`}
-                      >
-                        <Sparkles size={11} />
-                        <span>{grade.fullBadge}</span>
-                      </span>
-                      <p className="text-[11px] text-text-secondary leading-snug">
-                        {grade.description}
-                      </p>
-                    </div>
+                    <span
+                      className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full border ${grade.bgClass} ${grade.textClass} ${grade.borderClass} shadow-xs`}
+                      title={grade.description}
+                    >
+                      <Sparkles size={11} />
+                      <span>{grade.fullBadge}</span>
+                    </span>
                   )
                 })()}
               </div>
 
-              <h1 className="font-display font-bold text-xl md:text-2xl text-text-primary tracking-tight leading-snug">
+              <h1 className="font-display font-bold text-xl sm:text-2xl text-text-primary tracking-tight leading-snug">
                 {product.name}
               </h1>
-
-              {/* Price */}
-              <div className="pt-1">
-                <span className="text-xs text-text-muted block">Harga Resmi</span>
-                <span className="font-display font-bold text-2xl md:text-3xl text-accent">
-                  {formatPrice(product.price)}
-                </span>
-              </div>
-
-              {/* Tobacco Taste Profile Meter (Sensory Guidance) */}
-              <TobaccoTasteProfile product={product} />
-
-              {/* Description */}
-              <div className="pt-2 border-t border-border/60">
-                <h2 className="text-xs font-bold text-text-primary uppercase tracking-wider mb-1.5 font-display">
-                  Deskripsi Produk
-                </h2>
-                <p className="text-xs md:text-sm text-text-secondary leading-relaxed">
-                  {product.description ||
-                    `${product.name} merupakan pilihan tembakau terkurasi di Prawira Tobacco dengan kualitas aroma dan rajangan prima. Dipersiapkan secara teliti untuk kepuasan sensasi tingwe terbaik.`}
-                </p>
-              </div>
-
-              {/* Key Trust Signals */}
-              <div className="grid grid-cols-2 gap-2 pt-2 text-[11px] text-text-muted">
-                <div className="flex items-center gap-1.5">
-                  <CheckCircle2 size={13} className="text-emerald-600 flex-shrink-0" />
-                  <span>100% Produk Asli</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Truck size={13} className="text-accent flex-shrink-0" />
-                  <span>Ongkir Otomatis</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <ShieldCheck size={13} className="text-accent flex-shrink-0" />
-                  <span>Packing Higienis</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Package size={13} className="text-emerald-600 flex-shrink-0" />
-                  <span>Stok Terverifikasi</span>
-                </div>
-              </div>
             </div>
 
-            {/* Interactive Add to Cart and Checkout Actions */}
+            {/* Interactive Add to Cart, Variants, Addons, and Dynamic Price */}
             <ProductDetailActions product={product} />
+
+            {/* Tobacco Taste Profile Meter (Sensory Guidance) */}
+            <TobaccoTasteProfile product={product} />
+
+            {/* Description */}
+            <div className="pt-3 border-t border-border/60">
+              <h2 className="text-xs font-bold text-text-primary uppercase tracking-wider mb-1.5 font-display">
+                Deskripsi Produk
+              </h2>
+              <p className="text-xs md:text-sm text-text-secondary leading-relaxed">
+                {product.description ||
+                  `${product.name} merupakan pilihan tembakau terkurasi di Prawira Tobacco dengan kualitas aroma dan rajangan prima. Dipersiapkan secara teliti untuk kepuasan sensasi tingwe terbaik.`}
+              </p>
+            </div>
           </div>
         </div>
 

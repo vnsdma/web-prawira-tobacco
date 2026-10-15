@@ -363,14 +363,14 @@ function ProductCard({ product }: { product: Product }) {
         <div>
           {/* Category & Similarity Grade Badge */}
           <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
-            <span className="text-[10px] font-medium text-text-muted uppercase tracking-wider">
+            <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">
               {product.category === "accessories" ? "Aksesoris" : "Tembakau"}
             </span>
             {similarityGrade && (
               <span
-                className={`text-[9.5px] font-bold px-1.5 py-0.2 rounded border flex items-center gap-1 ${similarityGrade.bgClass} ${similarityGrade.textClass} ${similarityGrade.borderClass}`}
+                className={`text-[11px] font-bold px-1.5 py-0.5 rounded border flex items-center gap-1 ${similarityGrade.bgClass} ${similarityGrade.textClass} ${similarityGrade.borderClass}`}
               >
-                <Sparkles size={9} />
+                <Sparkles size={10} />
                 <span>{similarityGrade.fullBadge}</span>
               </span>
             )}
@@ -384,14 +384,14 @@ function ProductCard({ product }: { product: Product }) {
 
           {tobaccoProfile && (
             <div className="flex flex-wrap items-center gap-1 mt-2">
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent/10 text-accent font-semibold border border-accent/20">
+              <span className="text-[11px] px-1.5 py-0.5 rounded bg-accent/10 text-accent font-semibold border border-accent/20">
                 {tobaccoProfile.badgeTag || tobaccoProfile.aroma}
               </span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-raised text-text-muted font-medium border border-border">
+              <span className="text-[11px] px-1.5 py-0.5 rounded bg-raised text-text-muted font-medium border border-border">
                 {tobaccoProfile.throatHit}
               </span>
               {tobaccoProfile.cooling !== "Non-Ice" && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-600 dark:text-sky-400 font-medium border border-sky-500/20">
+                <span className="text-[11px] px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-600 dark:text-sky-400 font-medium border border-sky-500/20">
                   {tobaccoProfile.cooling}
                 </span>
               )}
@@ -402,10 +402,10 @@ function ProductCard({ product }: { product: Product }) {
         {/* Price and Add CTA */}
         <div className="flex items-center justify-between gap-2 pt-3 mt-2 border-t border-border/60">
           <div>
-            <span className="text-[10px] text-text-muted block">
+            <span className="text-[11px] text-text-muted block font-medium">
               {isTobacco ? "Mulai (50gr)" : "Harga"}
             </span>
-            <span className="font-display font-bold text-[13px] md:text-[14.5px] text-accent">
+            <span className="font-sans font-bold text-[14px] md:text-[15px] text-accent tabular-nums">
               {formatPrice(defaultPrice)}
             </span>
           </div>
