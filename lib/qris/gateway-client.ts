@@ -44,6 +44,15 @@ function getFallbackStaticQris(): string {
   return staticPayloadWithoutCrc + calculateCRC16(staticPayloadWithoutCrc)
 }
 
+function getRadarPayBaseUrl(): string {
+  let raw = process.env.RADARPAY_API_URL || process.env.QRIS_GATEWAY_URL || "https://radarpay.onrender.com"
+  raw = raw.trim()
+  if (!raw.startsWith("http://") && !raw.startsWith("https://")) {
+    raw = `https://${raw}`
+  }
+  return raw.replace(/\/+$/, "")
+}
+
 /**
  * Creates a dynamic QRIS order via RadarPay API (if available) or via embedded QRIS engine.
  */
@@ -55,13 +64,13 @@ export async function createDynamicQRISOrder(params: {
   customerPhone?: string
   notes?: string
 }): Promise<QRISOrderResponse> {
-  const radarPayUrl = process.env.RADARPAY_API_URL || process.env.QRIS_GATEWAY_URL || "http://localhost:3000"
-  const apiKey = process.env.RADARPAY_API_KEY || process.env.QRIS_API_KEY
+  const radarPayUrl = getRadarPayBaseUrl()
+  const apiKey = (process.env.RADARPAY_API_KEY || process.env.QRIS_API_KEY || "").trim()
 
   // 1. Try RadarPay API Gateway first if configured
   if (apiKey) {
     try {
-      const response = await fetch(`${radarPayUrl.replace(/\/$/, "")}/api/v1/orders`, {
+      const response = await fetch(`${radarPayUrl}/api/v1/orders`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -126,13 +135,13 @@ export async function createDynamicQRISOrder(params: {
  * Checks payment status against RadarPay API Gateway.
  */
 export async function checkRadarPayStatus(transactionId: string): Promise<string | null> {
-  const radarPayUrl = process.env.RADARPAY_API_URL || process.env.QRIS_GATEWAY_URL || "http://localhost:3000"
-  const apiKey = process.env.RADARPAY_API_KEY || process.env.QRIS_API_KEY
+  const radarPayUrl = getRadarPayBaseUrl()
+  const apiKey = (process.env.RADARPAY_API_KEY || process.env.QRIS_API_KEY || "").trim()
 
   if (!apiKey) return null
 
   try {
-    const response = await fetch(`${radarPayUrl.replace(/\/$/, "")}/api/v1/orders/${encodeURIComponent(transactionId)}`, {
+    const response = await fetch(`${radarPayUrl}/api/v1/orders/${encodeURIComponent(transactionId)}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
