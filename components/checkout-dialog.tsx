@@ -25,10 +25,15 @@ interface ShippingForm {
   notes: string
 }
 
-interface CashifyData {
+interface QrisData {
   qr_string: string
+  qr_image_url?: string
   transactionId: string
   totalAmount: number
+  uniqueCode?: number
+  baseAmount?: number
+  invoiceNumber?: string
+  source?: string
 }
 
 type Step = "form" | "payment" | "success"
@@ -84,8 +89,8 @@ export default function CheckoutDialog({
   const [showItems, setShowItems] = useState(false)
   const [copiedOrder, setCopiedOrder] = useState(false)
   
-  // Cashify Specific States
-  const [cashifyData, setCashifyData] = useState<CashifyData | null>(null)
+  // QRIS Payment Specific States
+  const [qrisData, setQrisData] = useState<QrisData | null>(null)
   const [paymentStatus, setPaymentStatus] = useState<"pending" | "success">("pending")
   const [checkingStatus, setCheckingStatus] = useState(false)
 
@@ -175,7 +180,7 @@ export default function CheckoutDialog({
         setLoading(false)
         setOrderNumber("")
         setCopiedOrder(false)
-        setCashifyData(null)
+        setQrisData(null)
         setPaymentStatus("pending")
         // Reset RajaOngkir
         setSelectedProvince(""); setCities([]); setSelectedCity("")
@@ -331,27 +336,28 @@ export default function CheckoutDialog({
     if (service) setShippingCost(service.cost[0].value)
   }
 
-  /* ── Cashify Status Check ── */
+  /* ── Dynamic QRIS Status Check ── */
   const checkStatus = async () => {
-    if (!cashifyData?.transactionId || checkingStatus) return
+    if (!qrisData?.transactionId || checkingStatus) return
     setCheckingStatus(true)
     try {
-      const res = await fetch("/api/payment/cashify/status", {
+      const res = await fetch("/api/payment/qris/status/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transactionId: cashifyData.transactionId }),
+        body: JSON.stringify({ transactionId: qrisData.transactionId }),
       })
       const result = await res.json()
       
       const status = result.final_status?.toLowerCase()
       if (["paid", "success", "settlement", "completed"].includes(status)) {
         setPaymentStatus("success")
-        toast({ title: "Pembayaran Berhasil!", description: "Pesanan Anda sedang diproses." })
+        toast({ title: "Pembayaran Berhasil Diterima!", description: "Pesanan Anda sedang diproses oleh toko." })
       } else {
-        toast({ title: "Belum Dibayar", description: "Silakan scan QRIS dan selesaikan pembayaran." })
+        toast({ title: "Belum Terdeteksi", description: "Silakan scan QRIS dan transfer tepat sesuai nominal." })
       }
     } catch (err) {
       console.error("Check status error:", err)
+      toast({ title: "Gagal memeriksa status", description: "Silakan coba beberapa saat lagi.", variant: "destructive" })
     } finally {
       setCheckingStatus(false)
     }
@@ -359,21 +365,36 @@ export default function CheckoutDialog({
 
   /* ── Download QR ── */
   const downloadQR = async () => {
-    if (!cashifyData?.qr_string) return
+    if (!qrisData) return
     try {
-      const imageUrl = cashifyData.qr_string?.startsWith("http") 
-        ? cashifyData.qr_string 
-        : `https://larabert-qrgen.hf.space/v1/create-qr-code?size=500x500&style=2&color=ea580c&data=${encodeURIComponent(cashifyData.qr_string || "")}`
+      const imageUrl = qrisData.qr_image_url || (qrisData.qr_string?.startsWith("http") 
+        ? qrisData.qr_string 
+        : `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(qrisData.qr_string || "")}`)
 
-      const response = await fetch(imageUrl)
-      const blob = await response.blob()
+      let blob: Blob
+      if (imageUrl.startsWith("data:")) {
+        const parts = imageUrl.split(",")
+        const byteString = atob(parts[1])
+        const mimeString = parts[0].split(":")[1].split(";")[0]
+        const ab = new ArrayBuffer(byteString.length)
+        const ia = new Uint8Array(ab)
+        for (let i = 0; i < byteString.length; i++) {
+          ia[i] = byteString.charCodeAt(i)
+        }
+        blob = new Blob([ab], { type: mimeString })
+      } else {
+        const response = await fetch(imageUrl)
+        blob = await response.blob()
+      }
+
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement("a")
       link.href = url
-      link.download = `QRIS-${cashifyData.transactionId}.png`
+      link.download = `QRIS-${qrisData.invoiceNumber || qrisData.transactionId}.png`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
     } catch {
       toast({ title: "Gagal mengunduh QR", variant: "destructive" })
     }
@@ -388,7 +409,7 @@ export default function CheckoutDialog({
   }
 
   /* ── Submit Order (STRICT PRESERVATION OF PAYMENT GATEWAYS) ── */
-  const handleSubmit = async (paymentMethod: "snap" | "cod" | "cashify") => {
+  const handleSubmit = async (paymentMethod: "snap" | "cod" | "qris" | "cashify") => {
     // Validasi form data (Nama, Email, dan WhatsApp selalu wajib)
     if (!form.name.trim() || !form.email.trim() || !form.phone.trim()) {
       toast({
@@ -496,16 +517,16 @@ export default function CheckoutDialog({
       setOrderNumber(createdOrderNumber)
 
       // Payment Gateway Dispatches
-      if (paymentMethod === "cashify") {
-        const cashifyRes = await fetch("/api/payment/cashify", {
+      if (paymentMethod === "qris" || paymentMethod === "cashify") {
+        const qrisRes = await fetch("/api/payment/qris/", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ order_id: data.id, amount: finalTotalAmount }),
         })
-        const cashifyResult = await cashifyRes.json()
-        if (!cashifyRes.ok || !cashifyResult.success) throw new Error(cashifyResult.error)
+        const qrisResult = await qrisRes.json()
+        if (!qrisRes.ok || !qrisResult.success) throw new Error(qrisResult.error || "Gagal membuat QRIS")
 
-        setCashifyData(cashifyResult.data)
+        setQrisData(qrisResult.data)
         clearCart()
         setStep("success")
       } else if (paymentMethod === "snap") {
@@ -621,22 +642,49 @@ export default function CheckoutDialog({
               )}
             </div>
 
-            {cashifyData && paymentStatus !== "success" && (
-              <div className="p-4 bg-white rounded-xl border border-border shadow-sm flex flex-col items-center gap-3">
-                <img 
-                  src={
-                    cashifyData.qr_string?.startsWith("http") 
-                      ? cashifyData.qr_string 
-                      : `https://larabert-qrgen.hf.space/v1/create-qr-code?size=500x500&style=2&color=ea580c&data=${encodeURIComponent(cashifyData.qr_string || "")}`
-                  } 
-                  alt="QRIS Payment" 
-                  className="w-52 h-52 rounded-lg object-contain"
-                />
+            {qrisData && paymentStatus !== "success" && (
+              <div className="p-4 bg-white dark:bg-card rounded-2xl border border-border shadow-sm flex flex-col items-center gap-3.5">
+                <div className="flex items-center justify-between w-full px-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-display font-black text-xs tracking-wider text-rose-600 dark:text-rose-400">QRIS</span>
+                    <span className="text-[10px] text-text-muted">Dynamic ASPI</span>
+                  </div>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold border border-emerald-500/20">
+                    Bebas Biaya MDR 0%
+                  </span>
+                </div>
+
+                {/* QR Code Canvas */}
+                <div className="p-3 bg-white rounded-xl border border-zinc-200 shadow-inner">
+                  <img 
+                    src={
+                      qrisData.qr_image_url || (qrisData.qr_string?.startsWith("http") 
+                        ? qrisData.qr_string 
+                        : `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(qrisData.qr_string || "")}`)
+                    } 
+                    alt="Dynamic QRIS Payment" 
+                    className="w-52 h-52 object-contain"
+                  />
+                </div>
+
+                {/* Amount to transfer */}
+                <div className="w-full bg-raised/70 border border-border rounded-xl p-3 text-center space-y-1">
+                  <div className="text-[11px] text-text-muted">Total Yang Harus Ditransfer:</div>
+                  <div className="font-display font-black text-lg text-accent tracking-tight">
+                    {formatPrice(qrisData.totalAmount)}
+                  </div>
+                  {qrisData.uniqueCode ? (
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                      ⚠️ Termasuk kode unik verifikasi (<strong>+{qrisData.uniqueCode}</strong>). Transfer tepat hingga digit terakhir agar otomatis terkonfirmasi!
+                    </p>
+                  ) : null}
+                </div>
+
                 <div className="flex gap-2 w-full">
                   <button
                     type="button"
                     onClick={downloadQR}
-                    className="flex-1 py-2 px-3 rounded-lg border border-border hover:bg-raised text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors text-text-primary"
+                    className="flex-1 py-2.5 px-3 rounded-lg border border-border hover:bg-raised text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors text-text-primary"
                   >
                     <Download size={13} />
                     <span>Simpan QR</span>
@@ -645,10 +693,10 @@ export default function CheckoutDialog({
                     type="button"
                     onClick={checkStatus}
                     disabled={checkingStatus}
-                    className="flex-1 py-2 px-3 rounded-lg bg-accent hover:bg-accent-hover text-accent-text text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
+                    className="flex-1 py-2.5 px-3 rounded-lg bg-accent hover:bg-accent-hover text-accent-text text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
                   >
                     {checkingStatus ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
-                    <span>Cek Status</span>
+                    <span>Cek Status Pembayaran</span>
                   </button>
                 </div>
               </div>
@@ -1015,18 +1063,26 @@ export default function CheckoutDialog({
                   3. Pilih Metode Pembayaran
                 </h3>
 
-                {/* Cashify QRIS */}
+                {/* Dynamic QRIS (Self-hosted / RadarPay) */}
                 <button
                   type="button"
-                  onClick={() => handleSubmit("cashify")}
+                  onClick={() => handleSubmit("qris")}
                   disabled={loading}
-                  className="w-full p-3 rounded-xl bg-accent hover:bg-accent-hover text-accent-text text-xs font-semibold flex items-center justify-between transition-all shadow-sm active:scale-[0.98] disabled:opacity-50"
+                  className="w-full p-3.5 rounded-xl bg-accent hover:bg-accent-hover text-accent-text text-xs font-semibold flex items-center justify-between transition-all shadow-sm active:scale-[0.98] disabled:opacity-50"
                 >
-                  <div className="flex items-center gap-2">
-                    <QrCode size={16} />
-                    <span>QRIS (Gopay / ShopeePay / Dana / BCA)</span>
+                  <div className="flex items-center gap-2.5 text-left">
+                    <div className="p-1.5 rounded-lg bg-white/20">
+                      <QrCode size={18} />
+                    </div>
+                    <div>
+                      <div className="font-bold flex items-center gap-1.5">
+                        <span>QRIS Dynamic (Bebas Biaya MDR 0%)</span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-white/25 uppercase font-mono tracking-wider">Instant</span>
+                      </div>
+                      <p className="text-[11px] opacity-90 font-normal">GoPay, ShopeePay, OVO, DANA, BCA & Semua E-Wallet</p>
+                    </div>
                   </div>
-                  {loading && <Loader2 size={14} className="animate-spin" />}
+                  {loading && <Loader2 size={16} className="animate-spin" />}
                 </button>
 
                 {/* Midtrans Snap (Bank Transfer / Virtual Account) */}
