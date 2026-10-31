@@ -1,10 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { ShoppingBag, Search, Sun, Moon, User, LayoutGrid, Home, X, PackageSearch } from "lucide-react"
-import { useCart } from "@/hooks/use-cart"
-import { useTheme } from "next-themes"
-import CartSheet from "@/components/cart-sheet"
+import { useState } from "react"
+import { Search, X } from "lucide-react"
 import ProductGrid from "@/components/product-grid"
 import CategoryFilter from "@/components/category-filter"
 import PromoBanner from "@/components/promo-banner"
@@ -14,6 +11,7 @@ import HowToRollSection from "@/components/how-to-roll-section"
 import Topbar from "@/components/topbar"
 import ProfileSection from "@/components/profile-section"
 import SeoContentSection from "@/components/seo-content-section"
+import { Home, LayoutGrid, User } from "lucide-react"
 
 export default function HomePage() {
   const [searchQuery, setSearchQuery]           = useState("")

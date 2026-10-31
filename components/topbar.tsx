@@ -11,12 +11,14 @@ import {
   ShoppingBag,
   PackageSearch,
   BookOpen,
+  Smartphone,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useAuth } from "@/hooks/use-auth"
 import { useCart } from "@/hooks/use-cart"
 import CartSheet from "@/components/cart-sheet"
 import Logo from "@/components/logo"
+import { APK_CONFIG } from "@/lib/apk-config"
 
 interface TopbarProps {
   activeTab: string
@@ -145,6 +147,18 @@ export default function Topbar({
 
         {/* ── Right: User Account, Theme Switcher & Cart ── */}
         <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Direct Download APK CTA in Topbar (Minimalist & Non-Intrusive) */}
+          <a
+            href={APK_CONFIG.downloadUrl}
+            download={APK_CONFIG.fileName}
+            className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold transition-all duration-200 active:scale-95 shadow-2xs cursor-pointer touch-manipulation"
+            title={`Unduh Aplikasi Android Prawira (${APK_CONFIG.fileName})`}
+          >
+            <Smartphone size={14} className="text-emerald-600 dark:text-emerald-400" />
+            <span className="hidden xs:inline">Unduh APK</span>
+            <span className="xs:hidden">APK</span>
+          </a>
+
           {/* Track Order / Account CTA */}
           <button
             type="button"
