@@ -223,12 +223,37 @@ export async function POST(req: NextRequest) {
       const cleanPhone = cleanPhoneNumber(customer_phone)
       const email = customer_email && customer_email.includes("@") ? customer_email.trim().toLowerCase() : `${cleanPhone}@prawiraguest.com`
 
-      // 1. Simpan order ke Supabase
-      const orderInsertData = {
+      // 1. Dapatkan atau buat customer di tabel 'customers'
+      let customerId = null
+      try {
+        const { data: existingCust } = await supabase.from("customers").select("id").eq("email", email).single()
+        if (existingCust) {
+          customerId = existingCust.id
+        } else {
+          const { data: newCust } = await supabase
+            .from("customers")
+            .insert({
+              name: customer_name.trim(),
+              email: email,
+              phone: cleanPhone,
+              address: shipping_address.trim(),
+              user_uid: `guest_chat_${Date.now()}`,
+              status: "active",
+            })
+            .select("id")
+            .single()
+          if (newCust) customerId = newCust.id
+        }
+      } catch (custErr) {
+        console.warn("Notice: could not resolve customer record:", custErr)
+      }
+
+      // 2. Simpan order ke Supabase
+      const orderInsertData: Record<string, any> = {
         order_number: orderNumber,
+        customer_id: customerId,
         customer_name: customer_name.trim(),
         customer_email: email,
-        customer_phone: cleanPhone,
         total_amount: verifiedTotal,
         subtotal: verifiedSubtotal,
         shipping_cost: verifiedShipping,
@@ -237,9 +262,15 @@ export async function POST(req: NextRequest) {
         payment_method: "qris",
         order_status: "pending",
         payment_status: "pending",
-        shipping_destination: shipping_address.trim(),
+        shipping_address: "Default Origin",
         shipping_service: "Biteship Standard / JNE Regular",
-        notes: "Pesanan otomatis via AI Kurator Chatbot",
+        shipping_destination: JSON.stringify({
+          address: shipping_address.trim(),
+          phone: cleanPhone,
+          name: customer_name.trim(),
+          email: email,
+        }),
+        notes: `Pesanan via Kurator AI (No WA: ${cleanPhone})`,
         user_uid: "chatbot_assistant",
       }
 
