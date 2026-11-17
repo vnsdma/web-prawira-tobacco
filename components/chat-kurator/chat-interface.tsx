@@ -81,7 +81,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ isOpen, onClose })
     setIsSending(true)
 
     try {
-      const res = await fetch("/api/chat", {
+      const res = await fetch("/api/chat/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -133,7 +133,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ isOpen, onClose })
   const handleConfirmOrder = async (orderPayload: any) => {
     setIsOrderProcessing(true)
     try {
-      const res = await fetch("/api/chat", {
+      const res = await fetch("/api/chat/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -178,7 +178,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ isOpen, onClose })
   // ── User Checks Payment Status ────────────────────────────────
   const handleCheckPayment = async (transactionId: string, orderId: string) => {
     try {
-      const res = await fetch("/api/chat", {
+      const res = await fetch("/api/chat/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

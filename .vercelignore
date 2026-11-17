@@ -1,0 +1,7 @@
+.vercel
+.git
+node_modules
+.next
+.agents
+public/downloads/
+*.apk

@@ -324,13 +324,17 @@ export async function POST(req: NextRequest) {
       textLower.includes("bayar") ||
       textLower.includes("checkout")
 
-    // Match products mentioned in query
-    const matchedProducts = allProducts.filter((p) => {
-      const pNameLower = p.name.toLowerCase()
-      // check words
-      const words = pNameLower.split(" ")
-      return words.some((w) => w.length > 2 && textLower.includes(w)) || textLower.includes(pNameLower)
-    })
+    // Match products mentioned in query, sorted by relevance (exact substring match first, then longest match)
+    const matchedProducts = allProducts
+      .filter((p) => {
+        const pNameLower = p.name.toLowerCase()
+        return textLower.includes(pNameLower) || pNameLower.split(" ").some((w) => w.length > 2 && textLower.includes(w))
+      })
+      .sort((a, b) => {
+        const aExact = textLower.includes(a.name.toLowerCase()) ? 100 : 0
+        const bExact = textLower.includes(b.name.toLowerCase()) ? 100 : 0
+        return (bExact + b.name.length) - (aExact + a.name.length)
+      })
 
     // Detect if user provided recipient details in text
     // E.g.: "Nama: Budi, No HP: 08123456789, Alamat: Jl. Merdeka No 10 Malang"
@@ -346,8 +350,18 @@ export async function POST(req: NextRequest) {
 
       // Extract recipient name
       let extractedName = "Pelanggan Prawira"
-      const nameMatch = userText.match(/nama\s*[:=-]?\s*([a-zA-Z\s]{3,30})/i)
+      const nameMatch = userText.match(/nama\s*[:=-]?\s*([a-zA-Z\s]{2,30})(?=[,\n]|$)/i)
       if (nameMatch) extractedName = nameMatch[1].trim()
+
+      // Extract shipping address
+      let extractedAddress = userText.trim()
+      const addrMatch = userText.match(/alamat\s*[:=-]?\s*([^\n\r]+)/i)
+      if (addrMatch) {
+        extractedAddress = addrMatch[1].replace(/^(?:adalah|:)\s*/i, "").trim()
+      } else {
+        const jlMatch = userText.match(/(?:jl\.|jalan)\s*[^\n\r]+/i)
+        if (jlMatch) extractedAddress = jlMatch[0].trim()
+      }
 
       const shippingCost = 12000
       const subtotal = selectedProd.price * qty
@@ -360,7 +374,7 @@ export async function POST(req: NextRequest) {
           customer_name: extractedName,
           customer_phone: detectedPhone,
           customer_email: `${detectedPhone}@prawiraguest.com`,
-          shipping_address: userText,
+          shipping_address: extractedAddress,
           items: [
             {
               id: selectedProd.id,
