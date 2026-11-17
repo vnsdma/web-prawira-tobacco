@@ -352,14 +352,22 @@ export async function POST(req: NextRequest) {
         order_status: "pending",
         payment_status: "pending",
         shipping_address: "Default Origin",
-        shipping_service: "Biteship Standard / JNE Regular",
+        shipping_service:
+          action_payload?.shipping_service ||
+          (action_payload?.courier_name && action_payload?.courier_service
+            ? `${action_payload.courier_name} ${action_payload.courier_service}`
+            : "Biteship Standard / JNE Regular"),
         shipping_destination: JSON.stringify({
           address: shipping_address.trim(),
           phone: cleanPhone,
           name: customer_name.trim(),
           email: email,
+          area_id: action_payload?.destination_area_id || null,
+          area_name: action_payload?.destination_area_name || null,
+          courier: action_payload?.courier_name || null,
+          courier_service: action_payload?.courier_service || null,
         }),
-        notes: `Pesanan via Kurator AI (No WA: ${cleanPhone})`,
+        notes: `Pesanan via Kurator AI (No WA: ${cleanPhone}, Kurir: ${action_payload?.shipping_service || "Biteship"})`,
         user_uid: "chatbot_assistant",
       }
 
@@ -435,6 +443,51 @@ export async function POST(req: NextRequest) {
     const textLower = userText.toLowerCase()
     const allProducts = await getSupabaseProducts()
 
+    // ── Check if user is finishing shopping / wants to view cart ──
+    const isFinishedIntent =
+      textLower === "sudah" ||
+      textLower === "cukup" ||
+      textLower === "selesai" ||
+      textLower === "lihat keranjang" ||
+      textLower === "cek keranjang" ||
+      textLower === "checkout" ||
+      textLower === "mau bayar" ||
+      textLower === "bayar sekarang"
+
+    if (isFinishedIntent) {
+      return NextResponse.json({
+        reply:
+          "Baik Kak! Silakan periksa daftar belanjaan di keranjang Kakak di bawah ini. Kakak bisa mengubah jumlahnya, menghapus item, atau klik **Lanjut ke Checkout**:",
+        action_hint: "open_cart",
+        tool_type: "cart_review",
+        tool_data: {
+          items: [],
+          subtotal: 0,
+        },
+      })
+    }
+
+    // ── Check if user wants to browse more products ──
+    const isBrowseMore =
+      textLower.includes("tambah produk lain") ||
+      textLower.includes("tambah lagi") ||
+      textLower.includes("cari produk lain") ||
+      textLower.includes("katalog")
+
+    if (isBrowseMore) {
+      const popularProducts = allProducts.filter((p) =>
+        ["Linting Surya", "Linting Samsu", "Barrack Whiskey Ice", "Linting Melon Ice", "Papir", "Busa kecil"].includes(p.name)
+      )
+      return NextResponse.json({
+        reply:
+          "Tentu Kak! Berikut beberapa varian tembakau pilihan & perlengkapan tingwe favorit yang siap dikirim hari ini:",
+        tool_type: "stock_card",
+        tool_data: {
+          items: popularProducts.length > 0 ? popularProducts : allProducts.slice(0, 4),
+        },
+      })
+    }
+
     // ── Check if user wants to buy / checkout directly in chat ──
     const isBuyingIntent =
       textLower.includes("beli") ||
@@ -509,11 +562,10 @@ export async function POST(req: NextRequest) {
       const qty = qtyMatch ? parseInt(qtyMatch[1], 10) : 1
 
       return NextResponse.json({
-        reply: `Pilihan yang sangat pas, Kak! Varian **${prod.name}** tersedia dengan harga **${formatRupiah(prod.price)}** (Sisa stok: **${prod.in_stock} pack**).\n\nUntuk membuat pesanan dan langsung menampilkan **Kode QRIS pembayaran**, mohon kirimkan data penerima dengan format berikut:\n\n*Nama Penerima:*\n*Nomor WhatsApp:*\n*Alamat Lengkap & Kota Tujuan:*`,
+        reply: `Varian **${prod.name}** (${formatRupiah(prod.price)}) tersedia sebanyak **${prod.in_stock} pack**.\n\nKlik tombol **[+ Pesan Varian Ini]** di kartu bawah untuk memasukkannya ke keranjang belanja Kakak:`,
         tool_type: "stock_card",
         tool_data: {
           items: [prod],
-          prompt_fill: `Saya mau pesan ${qty} pack ${prod.name}.\nNama: \nNo WA: 08\nAlamat: `,
         },
       })
     }
