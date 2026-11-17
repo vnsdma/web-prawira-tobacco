@@ -22,6 +22,7 @@ interface ProductItem {
   in_stock: number
   category?: string
   image_url?: string
+  description?: string | null
 }
 
 // ── 1. Helper: Fetch and cache catalog from Supabase ──────────────
@@ -31,13 +32,101 @@ async function getSupabaseProducts(searchTerm?: string): Promise<ProductItem[]> 
     if (searchTerm && searchTerm.trim()) {
       query = query.ilike("name", `%${searchTerm.trim()}%`)
     }
-    const { data, error } = await query.order("name", { ascending: true }).limit(8)
+    const { data, error } = await query.order("name", { ascending: true }).limit(100)
     if (error || !data) return []
     return data as ProductItem[]
   } catch (err) {
     console.error("Error fetching products from Supabase:", err)
     return []
   }
+}
+
+// ── 1b. Helper: Alias Dictionary & Intelligent Product Matcher ─────
+const PRODUCT_ALIASES: Record<string, string[]> = {
+  surya: ["surya", "linting surya", "gudang garam surya", "surya 12", "surya 16"],
+  samsu: ["samsu", "linting samsu", "dji sam soe", "234", "sam soe"],
+  marlong: ["marlong", "linting marlong", "marlboro", "marlo"],
+  melon: ["melon", "melon ice", "linting melon"],
+  strawberry: ["strawberry", "stroberi", "linting strawberry"],
+  cappucino: ["cappucino", "cappuccino", "kopi", "linting cappucino"],
+  mild: ["mild", "linting mild", "sampoerna mild"],
+  sampurna: ["sampurna", "sampoerna", "sampurna premium"],
+  magnum: ["magnum", "magnum premium", "djarum magnum"],
+  ggf: ["ggf", "linting ggf", "ggf premium", "garam filter"],
+  purple: ["purple", "purple ice", "purple ice burst", "berry", "burst"],
+  coklat: ["coklat", "chocolate", "coklat ice"],
+  "whiskey ice": ["whiskey ice", "barrack whiskey ice", "wiski ice"],
+  whiskey: ["whiskey", "barrack whiskey", "wiski"],
+  melisa: ["melisa", "barrack melisa"],
+  bayote: ["bayote", "bacote", "barrack bayote"],
+  cengkeh: ["cengkeh", "cengkeh murni", "clove"],
+  "busa besar": ["busa besar", "filter besar", "busa reguler"],
+  "busa kecil": ["busa kecil", "filter kecil", "busa slim", "filter mild"],
+  busa: ["busa", "filter"],
+  lem: ["lem", "lem rokok"],
+  papir: ["papir", "kertas rokok", "kertas linting", "paper"],
+}
+
+const GENERIC_MODIFIERS = new Set([
+  "premium", "ice", "blend", "pack", "bungkus", "pcs", "bako", "tembakau",
+  "linting", "rasa", "varian", "stok", "stock", "ready", "ada", "gak", "nggak",
+  "apakah", "berapa", "harga", "min", "kak", "bang", "bos"
+])
+
+function matchProducts(query: string, catalog: ProductItem[]): ProductItem[] {
+  const q = query.toLowerCase()
+  const qTokens = q.split(/[^a-zA-Z0-9]+/).filter(Boolean)
+
+  const scored = catalog.map((p) => {
+    let score = 0
+    const pName = p.name.toLowerCase()
+    const pTokens = pName.split(/[^a-zA-Z0-9]+/).filter(Boolean)
+
+    // 1. Exact full name match
+    if (q.includes(pName)) score += 1000
+
+    // 2. Token matches
+    let matchedDistinctive = false
+    for (const pt of pTokens) {
+      if (GENERIC_MODIFIERS.has(pt)) {
+        if (qTokens.includes(pt)) score += 10
+      } else {
+        if (qTokens.includes(pt)) {
+          score += 200
+          matchedDistinctive = true
+        }
+      }
+    }
+
+    // 3. Alias check
+    for (const [key, aliases] of Object.entries(PRODUCT_ALIASES)) {
+      if (pName.includes(key)) {
+        for (const alias of aliases) {
+          if (q.includes(alias)) {
+            score += 300
+            matchedDistinctive = true
+            break
+          }
+        }
+      }
+    }
+
+    // Penalize if matched only generic modifiers without any distinctive word
+    if (!matchedDistinctive && score > 0) {
+      score = 5
+    }
+
+    return { product: p, score, matchedDistinctive }
+  })
+
+  const maxScore = Math.max(...scored.map((s) => s.score), 0)
+  if (maxScore >= 100) {
+    return scored
+      .filter((s) => s.score >= 50)
+      .sort((a, b) => b.score - a.score)
+      .map((s) => s.product)
+  }
+  return []
 }
 
 // ── 2. Helper: Clean Indonesian Phone Number ──────────────────────
@@ -355,17 +444,8 @@ export async function POST(req: NextRequest) {
       textLower.includes("bayar") ||
       textLower.includes("checkout")
 
-    // Match products mentioned in query, sorted by relevance (exact substring match first, then longest match)
-    const matchedProducts = allProducts
-      .filter((p) => {
-        const pNameLower = p.name.toLowerCase()
-        return textLower.includes(pNameLower) || pNameLower.split(" ").some((w) => w.length > 2 && textLower.includes(w))
-      })
-      .sort((a, b) => {
-        const aExact = textLower.includes(a.name.toLowerCase()) ? 100 : 0
-        const bExact = textLower.includes(b.name.toLowerCase()) ? 100 : 0
-        return (bExact + b.name.length) - (aExact + a.name.length)
-      })
+    // Use our high-precision matching engine with alias and distinctive keyword support
+    const matchedProducts = matchProducts(userText, allProducts)
 
     // Detect if user provided recipient details in text
     // E.g.: "Nama: Budi, No HP: 08123456789, Alamat: Jl. Merdeka No 10 Malang"
@@ -539,13 +619,64 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── Scenario E: Specific Stock Check ──
+    // ── Scenario E: Specific Stock / Product Inquiry ──
+    const isStockInquiry =
+      textLower.includes("stok") ||
+      textLower.includes("stock") ||
+      textLower.includes("ready") ||
+      textLower.includes("ada") ||
+      textLower.includes("tersedia") ||
+      textLower.includes("sisa") ||
+      textLower.includes("punya") ||
+      textLower.includes("berapa") ||
+      textLower.includes("harga")
+
     if (matchedProducts.length > 0) {
+      if (matchedProducts.length === 1) {
+        const prod = matchedProducts[0]
+        const isReady = prod.in_stock > 0
+        const descText = prod.description && prod.description !== "bako" ? `\n• **Karakter**: ${prod.description}` : ""
+        const reply = isReady
+          ? `✅ Varian **${prod.name}** saat ini **READY STOCK** di gudang Prawira Tobacco!\n\n` +
+            `• **Harga**: ${formatRupiah(prod.price)} / pack\n` +
+            `• **Sisa Stok**: **${prod.in_stock} pack** siap kirim hari ini${descText}\n\n` +
+            `Kakak bisa langsung klik tombol **[Pesan Varian Ini]** di kartu bawah atau ketik langsung nama, no. WA, dan alamat untuk pemesanan & bayar via QRIS langsung di chat!`
+          : `⚠️ Mohon maaf Kak, varian **${prod.name}** saat ini sedang **HABIS** (Stok: 0). Kami sedang memproses restock dari supplier. Kakak bisa melihat varian serupa lainnya di kartu bawah!`
+
+        return NextResponse.json({
+          reply,
+          tool_type: "stock_card",
+          tool_data: {
+            items: [prod],
+            prompt_fill: `Saya mau pesan 1 pack ${prod.name}.\nNama: \nNo WA: 08\nAlamat: `,
+          },
+        })
+      }
+
       return NextResponse.json({
-        reply: `Berikut data ketersediaan stok real-time dari gudang Prawira Tobacco:`,
+        reply: `Berikut data ketersediaan stok real-time untuk varian yang relevan di gudang Prawira Tobacco:`,
         tool_type: "stock_card",
         tool_data: {
-          items: matchedProducts,
+          items: matchedProducts.slice(0, 4),
+        },
+      })
+    }
+
+    if (isStockInquiry && matchedProducts.length === 0) {
+      const popularKretek = allProducts.filter((p) =>
+        ["Linting Surya", "Linting Samsu", "Linting Marlong", "Barrack Whiskey Ice", "Linting Melon Ice"].includes(p.name)
+      )
+      return NextResponse.json({
+        reply:
+          "Mohon maaf Kak, varian yang Kakak tanyakan saat ini **belum tersedia** di katalog gudang Prawira Tobacco. 🙏\n\n" +
+          "Namun kami memiliki varian tembakau favorit nusantara yang saat ini **ready stock** dan sangat diminati:\n" +
+          "1. **Linting Surya** — Aroma cengkeh madu gurih mantap (Rp 24.000)\n" +
+          "2. **Linting Samsu** — Citarasa kretek klasik legendaris 234 (Rp 24.000)\n" +
+          "3. **Barrack Whiskey Ice** — Whiskey dingin menyegarkan (Rp 22.000)\n\n" +
+          "Kakak bisa melihat dan memesannya langsung dari kartu di bawah ini:",
+        tool_type: "stock_card",
+        tool_data: {
+          items: popularKretek.slice(0, 3),
         },
       })
     }
