@@ -179,12 +179,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ isOpen, onClose })
 
     // Update the last cart_review message tool_data in place
     setMessages((prev) => {
-      const idx = [...prev].reverse().findIndex((m) => m.tool_type === "cart_review")
+      const idx = prev.findLastIndex((m) => m.tool_type === "cart_review")
       if (idx !== -1) {
-        const actualIdx = prev.length - 1 - idx
         const updated = [...prev]
-        updated[actualIdx] = {
-          ...updated[actualIdx],
+        updated[idx] = {
+          ...updated[idx],
           tool_data: {
             items: nextItems,
             subtotal,
@@ -622,7 +621,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ isOpen, onClose })
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && e.keyCode !== 229) {
               e.preventDefault()
               handleSend()
             }
