@@ -223,6 +223,7 @@ export default function HowToRollSection() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [modalToolId, setModalToolId] = useState<RollingTool["id"]>("linting-kecil")
   const [activeDrawTab, setActiveDrawTab] = useState<"tipis" | "berat">("tipis")
+  const [isPlayingVideo, setIsPlayingVideo] = useState(false)
 
   const { addMultipleItems } = useCart()
   const { toast } = useToast()
@@ -233,6 +234,7 @@ export default function HowToRollSection() {
   const handleSelectTool = (id: RollingTool["id"]) => {
     setSelectedToolId(id)
     setCurrentStepIdx(0)
+    setIsPlayingVideo(false)
   }
 
   const handleOpenModal = (id: RollingTool["id"]) => {
@@ -551,15 +553,39 @@ export default function HowToRollSection() {
             </div>
           </div>
 
-          {/* Embedded YouTube Video Player */}
-          <div className="my-5 rounded-2xl overflow-hidden border border-border bg-black aspect-video max-w-2xl mx-auto shadow-md">
-            <iframe
-              className="w-full h-full"
-              src={`https://www.youtube-nocookie.com/embed/eLlI8p6MrvA?start=${currentTool.youtubeStartSeconds}&rel=0`}
-              title={`Tutorial ${currentTool.name}`}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
+          {/* Embedded YouTube Video Player (Lite Facade - Zero Initial Third-Party Blocking Scripts/Cookies) */}
+          <div className="my-5 rounded-2xl overflow-hidden border border-border bg-black aspect-video max-w-2xl mx-auto shadow-md relative group">
+            {isPlayingVideo ? (
+              <iframe
+                className="w-full h-full"
+                src={`https://www.youtube-nocookie.com/embed/eLlI8p6MrvA?start=${currentTool.youtubeStartSeconds}&rel=0&autoplay=1`}
+                title={`Tutorial ${currentTool.name}`}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsPlayingVideo(true)}
+                className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-neutral-900 via-neutral-950 to-black text-white p-6 cursor-pointer relative overflow-hidden group/btn"
+                aria-label={`Putar video tutorial ${currentTool.name}`}
+              >
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(239,68,68,0.18)_0%,transparent_75%)] pointer-events-none" />
+                <div className="relative z-10 flex flex-col items-center gap-3">
+                  <div className="w-16 h-16 rounded-2xl bg-red-600 group-hover/btn:bg-red-500 text-white flex items-center justify-center shadow-xl transition-all duration-300 group-hover/btn:scale-110">
+                    <Play size={28} fill="currentColor" className="ml-1 text-white" />
+                  </div>
+                  <div className="text-center px-4">
+                    <span className="font-display font-bold text-sm sm:text-base text-white block">
+                      Tonton Video Tutorial {currentTool.shortLabel}
+                    </span>
+                    <span className="text-xs text-neutral-400 mt-1 block">
+                      Klik untuk memutar video dari YouTube resmi (Mulai detik {currentTool.youtubeStartSeconds}s)
+                    </span>
+                  </div>
+                </div>
+              </button>
+            )}
           </div>
 
           {/* Stepper Progress Bar */}

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import dynamic from "next/dynamic"
 import {
   Home,
   LayoutGrid,
@@ -16,9 +17,12 @@ import {
 import { useTheme } from "next-themes"
 import { useAuth } from "@/hooks/use-auth"
 import { useCart } from "@/hooks/use-cart"
-import CartSheet from "@/components/cart-sheet"
 import Logo from "@/components/logo"
 import { APK_CONFIG } from "@/lib/apk-config"
+
+const CartSheet = dynamic(() => import("@/components/cart-sheet"), {
+  ssr: false,
+})
 
 interface TopbarProps {
   activeTab: string

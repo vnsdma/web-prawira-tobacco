@@ -1,11 +1,19 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import dynamic from "next/dynamic"
 import { MessageCircle, X, Sparkles, ShoppingBag, Check, Bot, QrCode } from "lucide-react"
 import { getTasteConsultationLink } from "@/lib/whatsapp"
 import { useCart } from "@/hooks/use-cart"
 import CartSheet from "@/components/cart-sheet"
-import { ChatInterface } from "@/components/chat-kurator/chat-interface"
+
+const ChatInterface = dynamic(
+  () => import("@/components/chat-kurator/chat-interface").then((mod) => mod.ChatInterface),
+  {
+    ssr: false,
+    loading: () => null,
+  }
+)
 
 function formatPrice(price: number) {
   return new Intl.NumberFormat("id-ID", {
@@ -153,8 +161,10 @@ export default function WhatsAppConcierge() {
         </div>
       </div>
 
-      {/* ── 4. Interactive AI Chatbot Modal ── */}
-      <ChatInterface isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+      {/* ── 4. Interactive AI Chatbot Modal (Dynamically Mounted on Open) ── */}
+      {isChatOpen && (
+        <ChatInterface isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+      )}
     </>
   )
 }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import {
   Plus,
   Check,
@@ -170,13 +171,16 @@ function MainstayStarsSpotlight({ products }: { products: Product[] }) {
         {/* Product Image */}
         <Link
           href={`/produk/${product.id}`}
-          className="w-28 h-28 sm:w-36 sm:h-36 rounded-xl bg-raised border border-border overflow-hidden flex-shrink-0 group block"
+          className="w-28 h-28 sm:w-36 sm:h-36 rounded-xl bg-raised border border-border overflow-hidden flex-shrink-0 group block relative"
         >
           {product.image_url ? (
-            <img
+            <Image
               src={product.image_url}
               alt={product.name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              fill
+              sizes="(max-width: 640px) 112px, 144px"
+              priority
+              className="object-cover group-hover:scale-105 transition-transform duration-300"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-text-muted text-xs">
@@ -324,14 +328,15 @@ function ProductCard({ product }: { product: Product }) {
   return (
     <div className="product-card group relative">
       {/* Product Image Link */}
-      <Link href={`/produk/${product.id}`} className="product-img-wrap block cursor-pointer">
+      <Link href={`/produk/${product.id}`} className="product-img-wrap block cursor-pointer relative overflow-hidden">
         {product.image_url ? (
-          <img
+          <Image
             src={product.image_url}
             alt={`Jual ${product.name} - Prawira Tobacco`}
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 260px"
             loading="lazy"
-            decoding="async"
-            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
           <div className="flex flex-col items-center justify-center text-text-muted p-4">

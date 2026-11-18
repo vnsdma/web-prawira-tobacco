@@ -140,8 +140,9 @@ export default function CheckoutDialog({
   // Final Total = Subtotal + Effective Shipping Cost
   const finalTotalAmount = subtotal + effectiveShippingCost
 
-  // Load Midtrans Snap client script dynamically if needed
+  // Load Midtrans Snap client script dynamically ONLY when dialog is opened
   useEffect(() => {
+    if (!open) return
     if (typeof window !== "undefined" && !(window as any).snap) {
       const isProduction = process.env.NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION === "true"
       const snapUrl = isProduction
@@ -157,7 +158,7 @@ export default function CheckoutDialog({
         document.head.appendChild(script)
       }
     }
-  }, [])
+  }, [open])
 
   useEffect(() => {
     if (isAuthenticated && user) {

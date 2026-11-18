@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import { createClient } from "@supabase/supabase-js"
 import { ArrowLeft, CheckCircle2, Package, ShieldCheck, Truck, ShoppingBag, Flame, Sparkles, BookOpen, ChevronRight } from "lucide-react"
 import ProductDetailActions from "@/components/product-detail-actions"
@@ -185,9 +186,12 @@ export default async function ProductDetailPage({ params }: PageProps) {
           <div className="md:col-span-5 md:sticky md:top-20 space-y-3">
             <div className="relative aspect-square rounded-xl bg-raised border border-border overflow-hidden flex items-center justify-center">
               {product.image_url ? (
-                <img
+                <Image
                   src={product.image_url}
                   alt={`Jual ${product.name} - Prawira Tobacco`}
+                  fill
+                  priority
+                  sizes="(max-width: 768px) 100vw, 480px"
                   className="w-full h-full object-cover"
                 />
               ) : (
@@ -316,11 +320,14 @@ export default async function ProductDetailPage({ params }: PageProps) {
                   href={`/produk/${rel.id}`}
                   className="product-card group p-3 space-y-2 hover:border-accent transition-colors"
                 >
-                  <div className="aspect-square rounded-lg bg-raised overflow-hidden">
+                  <div className="aspect-square rounded-lg bg-raised overflow-hidden relative">
                     {rel.image_url ? (
-                      <img
+                      <Image
                         src={rel.image_url}
                         alt={`Jual ${rel.name}`}
+                        fill
+                        sizes="(max-width: 640px) 50vw, 200px"
+                        loading="lazy"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                       />
                     ) : (

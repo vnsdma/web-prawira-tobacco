@@ -2,10 +2,15 @@
 
 import type { ReactNode } from "react"
 import { useState, useEffect } from "react"
+import dynamic from "next/dynamic"
+import Image from "next/image"
 import { useCart } from "@/hooks/use-cart"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, Truck, PackageCheck, Scale } from "lucide-react"
-import CheckoutDialog from "./checkout-dialog"
+
+const CheckoutDialog = dynamic(() => import("./checkout-dialog"), {
+  ssr: false,
+})
 
 interface CartSheetProps {
   children?: ReactNode
@@ -226,11 +231,13 @@ export default function CartSheet({ children }: CartSheetProps) {
                   className="flex gap-3 p-3 rounded-xl bg-card border border-border hover:border-accent/30 transition-colors"
                 >
                   {/* Thumbnail */}
-                  <div className="w-16 h-16 rounded-lg bg-raised border border-border/60 overflow-hidden flex items-center justify-center flex-shrink-0">
+                  <div className="w-16 h-16 rounded-lg bg-raised border border-border/60 overflow-hidden flex items-center justify-center flex-shrink-0 relative">
                     {item.image ? (
-                      <img
+                      <Image
                         src={item.image}
                         alt={item.name}
+                        width={64}
+                        height={64}
                         className="w-full h-full object-cover"
                       />
                     ) : (
@@ -336,13 +343,15 @@ export default function CartSheet({ children }: CartSheetProps) {
         </SheetContent>
       </Sheet>
 
-      {/* Checkout Dialog Modal */}
-      <CheckoutDialog
-        open={showCheckout}
-        onOpenChange={setShowCheckout}
-        items={items}
-        total={subtotal}
-      />
+      {/* Checkout Dialog Modal (Dynamically Mounted on Open) */}
+      {showCheckout && (
+        <CheckoutDialog
+          open={showCheckout}
+          onOpenChange={setShowCheckout}
+          items={items}
+          total={subtotal}
+        />
+      )}
     </>
   )
 }

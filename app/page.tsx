@@ -1,17 +1,29 @@
 "use client"
 
 import { useState } from "react"
-import { Search, X } from "lucide-react"
+import dynamic from "next/dynamic"
+import { Search, X, Home, LayoutGrid, User } from "lucide-react"
 import ProductGrid from "@/components/product-grid"
 import CategoryFilter from "@/components/category-filter"
 import PromoBanner from "@/components/promo-banner"
 import PromoChips from "@/components/promo-chips"
 import StarterKitBanner from "@/components/starter-kit-banner"
-import HowToRollSection from "@/components/how-to-roll-section"
 import Topbar from "@/components/topbar"
-import ProfileSection from "@/components/profile-section"
 import SeoContentSection from "@/components/seo-content-section"
-import { Home, LayoutGrid, User } from "lucide-react"
+
+const HowToRollSection = dynamic(() => import("@/components/how-to-roll-section"), {
+  loading: () => <div className="min-h-[250px]" />,
+  ssr: true,
+})
+
+const ProfileSection = dynamic(() => import("@/components/profile-section"), {
+  loading: () => (
+    <div className="p-8 text-center text-xs text-text-muted">
+      Memuat profil &amp; pesanan...
+    </div>
+  ),
+  ssr: false,
+})
 
 export default function HomePage() {
   const [searchQuery, setSearchQuery]           = useState("")

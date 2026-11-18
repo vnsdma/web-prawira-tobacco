@@ -1,12 +1,14 @@
 import type React from "react"
 import type { Metadata, Viewport } from "next"
+import dynamic from "next/dynamic"
 import { Syne, DM_Sans } from "next/font/google"
 import "./globals.css"
 import { CartProvider } from "@/hooks/use-cart"
 import { AuthProvider } from "@/hooks/use-auth"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
-import WhatsAppConcierge from "@/components/whatsapp-concierge"
+
+const WhatsAppConcierge = dynamic(() => import("@/components/whatsapp-concierge"))
 
 /* ─── FONTS (OPTIMIZED BY NEXT.JS - NO BLOCKING @IMPORT) ───── */
 const syne = Syne({
@@ -52,9 +54,14 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512x512.png", sizes: "512x512", type: "image/png" },
     ],
-    shortcut: "/favicon.svg",
-    apple: "/favicon.svg",
+    shortcut: "/favicon.ico",
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
   },
   manifest: "/manifest.json",
   appleWebApp: {
