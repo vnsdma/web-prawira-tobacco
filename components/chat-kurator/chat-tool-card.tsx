@@ -741,5 +741,57 @@ export const ChatToolCard: React.FC<ToolCardProps> = ({
     )
   }
 
+  // ─────────────────────────────────────────────────────────────
+  // 7. KARTU AKSI WHATSAPP OTOMATIS (WHATSAPP ACTION CARD)
+  // ─────────────────────────────────────────────────────────────
+  if (toolType === "whatsapp_action") {
+    const { target_phone, message_preview, direct_url, status_text, provider } = toolData || {}
+
+    return (
+      <div className="my-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 text-xs shadow-sm animate-in fade-in zoom-in-95 duration-200">
+        <div className="flex items-center justify-between pb-2 mb-2 border-b border-emerald-500/20">
+          <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold text-[11.5px]">
+            <Send size={13} className="text-emerald-500" />
+            <span>Aksi WhatsApp Otomatis</span>
+          </div>
+          <span className="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-[9.5px] font-semibold">
+            {provider || "WhatsApp Gateway"}
+          </span>
+        </div>
+
+        <div className="space-y-1.5 mb-3">
+          {target_phone && (
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="text-text-muted">Nomor Tujuan:</span>
+              <span className="font-mono font-bold text-text-primary">+{target_phone}</span>
+            </div>
+          )}
+          {status_text && (
+            <div className="text-[10.5px] text-emerald-600 dark:text-emerald-400 font-medium">
+              {status_text}
+            </div>
+          )}
+          {message_preview && (
+            <div className="p-2 rounded-lg bg-card border border-border text-[11px] text-text-secondary italic line-clamp-3">
+              &ldquo;{message_preview}&rdquo;
+            </div>
+          )}
+        </div>
+
+        {direct_url && (
+          <a
+            href={direct_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-all active:scale-98"
+          >
+            <Send size={12} />
+            <span>Buka Chat WhatsApp Resmi &rarr;</span>
+          </a>
+        )}
+      </div>
+    )
+  }
+
   return null
 }

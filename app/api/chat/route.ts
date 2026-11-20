@@ -6,12 +6,34 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://mitkblmftej
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
 const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
+const AGENT_API_URL =
+  process.env.PRAWIRA_AI_AGENT_API_URL ||
+  process.env.NEXT_PUBLIC_AI_AGENT_API_URL ||
+  "https://prawira-ai-agent.onrender.com/api"
+
+export interface CitationItem {
+  document: string
+  page?: number
+  similarity?: number
+  preview?: string
+}
+
 export interface ChatMessage {
   id: string
   role: "user" | "assistant"
   content: string
   timestamp?: string
-  tool_type?: "stock_card" | "order_review" | "qris_card" | "payment_success" | "whatsapp_action"
+  citations?: CitationItem[]
+  provider?: string
+  tool_type?:
+    | "stock_card"
+    | "order_review"
+    | "qris_card"
+    | "payment_success"
+    | "whatsapp_action"
+    | "cart_prompt"
+    | "cart_review"
+    | "checkout_container"
   tool_data?: any
 }
 
@@ -23,6 +45,66 @@ interface ProductItem {
   category?: string
   image_url?: string
   description?: string | null
+}
+
+// ── Helper: Enrich raw inventory items from live Enterprise RAG tool output ──
+function enrichItemsFromCatalog(rawItems: any[], allProducts: ProductItem[]): ProductItem[] {
+  const result: ProductItem[] = []
+  const seenIds = new Set<number>()
+
+  for (const item of rawItems) {
+    if (!item) continue
+
+    // Extract numeric ID from SKU (e.g. "PT-0044" -> 44)
+    let skuId: number | null = null
+    if (typeof item.sku === "string") {
+      const match = item.sku.match(/\d+/)
+      if (match) {
+        skuId = parseInt(match[0], 10)
+      }
+    }
+
+    const itemName = typeof item.name === "string" ? item.name.toLowerCase().trim() : ""
+
+    const matchedProd = allProducts.find((p) => {
+      if (skuId !== null && p.id === skuId) return true
+      const pName = p.name.toLowerCase().trim()
+      if (itemName && pName === itemName) return true
+      if (itemName && (pName.includes(itemName) || itemName.includes(pName))) return true
+      return false
+    })
+
+    if (matchedProd) {
+      if (!seenIds.has(matchedProd.id)) {
+        seenIds.add(matchedProd.id)
+        result.push({
+          id: matchedProd.id,
+          name: matchedProd.name,
+          price: matchedProd.price || item.price || 23000,
+          in_stock: typeof item.stock === "number" ? item.stock : matchedProd.in_stock,
+          category: matchedProd.category || item.category,
+          image_url: matchedProd.image_url,
+          description: matchedProd.description || item.description || item.category,
+        })
+      }
+    } else {
+      const fallbackId = skuId || Math.floor(Math.random() * 10000) + 1000
+      if (!seenIds.has(fallbackId)) {
+        seenIds.add(fallbackId)
+        result.push({
+          id: fallbackId,
+          name: item.name || "Tembakau Prawira",
+          price: item.price || 23000,
+          in_stock: typeof item.stock === "number" ? item.stock : 10,
+          category: item.category || "Tembakau",
+          image_url: undefined,
+          description: item.category || "Produk Prawira Tobacco",
+        })
+      }
+    }
+  }
+
+  return result
 }
 
 // ── 1. Helper: Fetch and cache catalog from Supabase ──────────────
@@ -149,7 +231,7 @@ function formatRupiah(amount: number): string {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { message, action, action_payload, history = [] } = body
+    const { message, action, action_payload, history = [], session_id } = body
 
     // ==============================================================
     // AKSI 1: CEK STATUS PEMBAYARAN QRIS (LIVE CHECK VIA RADARPAY)
@@ -488,264 +570,104 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // ── Check if user wants to buy / checkout directly in chat ──
-    const isBuyingIntent =
-      textLower.includes("beli") ||
-      textLower.includes("pesan") ||
-      textLower.includes("order") ||
-      textLower.includes("mau ambil") ||
-      textLower.includes("bayar") ||
-      textLower.includes("checkout")
+    // ==============================================================
+    // 3. ENTERPRISE AI AGENT INTEGRATION (https://prawira-ai-agent.onrender.com/api)
+    // ==============================================================
+    let agentData: any = null
 
-    // Use our high-precision matching engine with alias and distinctive keyword support
+    try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 20000) // 20s timeout tolerance for free tier cold starts
+
+      const agentRes = await fetch(`${AGENT_API_URL}/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: userText,
+          session_id: session_id || "session-web",
+        }),
+        signal: controller.signal,
+      })
+      clearTimeout(timeoutId)
+
+      if (agentRes.ok) {
+        agentData = await agentRes.json()
+      } else {
+        console.warn(`Prawira AI Agent responded with HTTP ${agentRes.status}`)
+      }
+    } catch (err: any) {
+      console.warn("⚠️ Prawira AI Agent call failed/timed out, falling back to local catalog search:", err?.message || err)
+    }
+
+    if (agentData) {
+      let tool_type: string | undefined = undefined
+      let tool_data: any = undefined
+
+      const executedTools = Array.isArray(agentData.executed_tools) ? agentData.executed_tools : []
+      const rawStockItems: any[] = []
+
+      for (const toolCall of executedTools) {
+        if (toolCall.tool === "check_inventory_stock" && toolCall.result?.found && Array.isArray(toolCall.result.items)) {
+          rawStockItems.push(...toolCall.result.items)
+        }
+      }
+
+      if (rawStockItems.length > 0) {
+        const enriched = enrichItemsFromCatalog(rawStockItems, allProducts)
+        if (enriched.length > 0) {
+          tool_type = "stock_card"
+          tool_data = {
+            items: enriched,
+          }
+        }
+      }
+
+      // Check if send_whatsapp_action was executed
+      if (!tool_type) {
+        const waTool = executedTools.find((t: any) => t.tool === "send_whatsapp_action")
+        if (waTool && waTool.result) {
+          tool_type = "whatsapp_action"
+          tool_data = waTool.result
+        }
+      }
+
+      return NextResponse.json({
+        reply: agentData.answer || "Halo! Ada yang bisa saya bantu seputar produk tembakau Prawira Tobacco?",
+        citations: agentData.citations || [],
+        provider: agentData.provider || "Gemini Enterprise RAG",
+        tool_type,
+        tool_data,
+      })
+    }
+
+    // ── Resilient Fallback: Local Catalog Matcher (Only if external AI agent is unreachable) ──
     const matchedProducts = matchProducts(userText, allProducts)
-
-    // Detect if user provided recipient details in text
-    // E.g.: "Nama: Budi, No HP: 08123456789, Alamat: Jl. Merdeka No 10 Malang"
-    const phoneMatch = userText.match(/(?:08|\+628|628)\d{8,12}/)
-    const hasAddress = textLower.includes("jl.") || textLower.includes("jalan") || textLower.includes("alamat") || textLower.includes("kota") || textLower.includes("kabupaten") || textLower.includes("kecamatan")
-
-    // ── Scenario A: User provides complete order info ──
-    if (isBuyingIntent && matchedProducts.length > 0 && phoneMatch && hasAddress) {
-      const selectedProd = matchedProducts[0]
-      const qtyMatch = userText.match(/(\d+)\s*(?:pack|bungkus|pcs|biji|kaleng)?/)
-      const qty = qtyMatch ? parseInt(qtyMatch[1], 10) : 1
-      const detectedPhone = cleanPhoneNumber(phoneMatch[0])
-
-      // Extract recipient name
-      let extractedName = "Pelanggan Prawira"
-      const nameMatch = userText.match(/nama\s*[:=-]?\s*([a-zA-Z\s]{2,30})(?=[,\n]|$)/i)
-      if (nameMatch) extractedName = nameMatch[1].trim()
-
-      // Extract shipping address
-      let extractedAddress = userText.trim()
-      const addrMatch = userText.match(/alamat\s*[:=-]?\s*([^\n\r]+)/i)
-      if (addrMatch) {
-        extractedAddress = addrMatch[1].replace(/^(?:adalah|:)\s*/i, "").trim()
-      } else {
-        const jlMatch = userText.match(/(?:jl\.|jalan)\s*[^\n\r]+/i)
-        if (jlMatch) extractedAddress = jlMatch[0].trim()
-      }
-
-      const shippingCost = 12000
-      const subtotal = selectedProd.price * qty
-      const totalAmount = subtotal + shippingCost
-
-      return NextResponse.json({
-        reply: `Siap Kak! Data pesanan Kak **${extractedName}** sudah saya catat dengan detail di bawah ini.\n\nSilakan cek rincian pesanan dan klik tombol **Konfirmasi & Tampilkan QRIS** untuk melakukan pembayaran langsung:`,
-        tool_type: "order_review",
-        tool_data: {
-          customer_name: extractedName,
-          customer_phone: detectedPhone,
-          customer_email: `${detectedPhone}@prawiraguest.com`,
-          shipping_address: extractedAddress,
-          items: [
-            {
-              id: selectedProd.id,
-              name: selectedProd.name,
-              price: selectedProd.price,
-              quantity: qty,
-              image_url: selectedProd.image_url,
-            },
-          ],
-          subtotal,
-          shipping_cost: shippingCost,
-          total_amount: totalAmount,
-        },
-      })
-    }
-
-    // ── Scenario B: User expresses buying intent for a product but hasn't provided address/phone ──
-    if (isBuyingIntent && matchedProducts.length > 0) {
-      const prod = matchedProducts[0]
-      const qtyMatch = userText.match(/(\d+)\s*(?:pack|bungkus|pcs|biji)?/)
-      const qty = qtyMatch ? parseInt(qtyMatch[1], 10) : 1
-
-      return NextResponse.json({
-        reply: `Varian **${prod.name}** (${formatRupiah(prod.price)}) tersedia sebanyak **${prod.in_stock} pack**.\n\nKlik tombol **[+ Pesan Varian Ini]** di kartu bawah untuk memasukkannya ke keranjang belanja Kakak:`,
-        tool_type: "stock_card",
-        tool_data: {
-          items: [prod],
-        },
-      })
-    }
-
-    // ── Scenario C: User asks for taste recommendations ──
-    const isTasteQuery =
-      textLower.includes("rekomendasi") ||
-      textLower.includes("saran") ||
-      textLower.includes("enak") ||
-      textLower.includes("manis") ||
-      textLower.includes("dingin") ||
-      textLower.includes("ice") ||
-      textLower.includes("kretek") ||
-      textLower.includes("mild") ||
-      textLower.includes("buah") ||
-      textLower.includes("pemula") ||
-      textLower.includes("katalog")
-
-    if (isTasteQuery) {
-      let filtered: ProductItem[] = []
-      let tasteDescription = ""
-
-      if (textLower.includes("manis") || textLower.includes("buah") || textLower.includes("kopi")) {
-        filtered = allProducts.filter((p) =>
-          ["Linting Melon Ice", "Linting Strawberry", "Linting Cappucino", "Coklat Ice Premium", "Purple Ice Burst"].some((n) => p.name.includes(n))
-        )
-        tasteDescription =
-          "🍃 **Rekomendasi Karakter Manis, Fruity & Creamy Prawira:**\n" +
-          "1. **Linting Melon Ice** — Rasa manis buah melon segar dipadu sensasi dingin menthol sejuk.\n" +
-          "2. **Linting Strawberry** — Manis legit buah strawberry alami yang ramah di tenggorokan.\n" +
-          "3. **Linting Cappucino** — Cita rasa kopi cappucino creamy yang hangat & wangi.\n" +
-          "4. **Coklat Ice Premium** — Paduan coklat manis lembut dengan sentuhan mint dingin."
-      } else if (textLower.includes("dingin") || textLower.includes("ice") || textLower.includes("menthol")) {
-        filtered = allProducts.filter((p) =>
-          ["Barrack Whiskey Ice", "Linting Melon Ice", "Purple Ice Burst", "Coklat Ice Premium"].some((n) => p.name.includes(n))
-        )
-        tasteDescription =
-          "❄️ **Rekomendasi Karakter Dingin & Segar (Ice Blend):**\n" +
-          "1. **Barrack Whiskey Ice** — Aroma whiskey khas berkelas dengan tarikan dingin menyegarkan.\n" +
-          "2. **Linting Melon Ice** — Buah melon dingin yang sangat laris dan nikmat.\n" +
-          "3. **Purple Ice Burst** — Sensasi anggur berry segar dengan dingin burst di setiap hisapan."
-      } else if (textLower.includes("kretek") || textLower.includes("gurih") || textLower.includes("mantap")) {
-        filtered = allProducts.filter((p) =>
-          ["Linting Surya", "Linting Samsu", "Linting Marlong", "Magnum Premium", "GGF Premium"].some((n) => p.name.includes(n))
-        )
-        tasteDescription =
-          "🍂 **Rekomendasi Karakter Gurih Mantap (Kretek Nusantara Tradisional):**\n" +
-          "1. **Linting Surya** — Aroma cengkeh madu tebal, tarikan gurih mantap khas tembakau nusantara.\n" +
-          "2. **Linting Samsu** — Citarasa kretek klasik legendaris, gurih padat dan harum.\n" +
-          "3. **Linting Marlong** — Karakter American blend yang mantap dan tegas."
-      } else {
-        filtered = allProducts.filter((p) =>
-          ["Linting Mild", "Barrack Soju", "Sampurna Premium", "Barrack Melisa"].some((n) => p.name.includes(n))
-        )
-        tasteDescription =
-          "✨ **Rekomendasi Karakter Mild & Halus (Sangat Cocok untuk Pemula):**\n" +
-          "1. **Linting Mild** — Tarikan sangat ringan, halus, dan bersih tanpa rasa serak.\n" +
-          "2. **Barrack Soju** — Golden Virginia aromatik dengan wangi buah segar lembut.\n" +
-          "3. **Sampurna Premium** — Racikan halus premium dengan perpaduan rempah seimbang."
-      }
-
-      if (filtered.length === 0) {
-        filtered = allProducts.slice(0, 4)
-      }
-
-      return NextResponse.json({
-        reply: `${tasteDescription}\n\nSemua produk di atas siap dikirim hari ini. Kakak bisa klik tombol **[Pesan Produk Ini]** di kartu bawah untuk langsung transaksi via QRIS:`,
-        tool_type: "stock_card",
-        tool_data: {
-          items: filtered.slice(0, 4),
-        },
-      })
-    }
-
-    // ── Scenario D: SOP, Penyimpanan & Garansi ──
-    const isSopQuery =
-      textLower.includes("simpan") ||
-      textLower.includes("kering") ||
-      textLower.includes("garansi") ||
-      textLower.includes("retur") ||
-      textLower.includes("komplain") ||
-      textLower.includes("ekspedisi") ||
-      textLower.includes("ongkir")
-
-    if (isSopQuery) {
-      if (textLower.includes("simpan") || textLower.includes("kering") || textLower.includes("awet")) {
-        return NextResponse.json({
-          reply:
-            "📖 **Panduan Resmi SOP Penyimpanan Tembakau Prawira Tobacco:**\n\n" +
-            "1. **Wadah Kedap Udara**: Simpan tembakau di dalam toples kaca kedap udara atau pouch tertutup rapat untuk menjaga kelembaban alaminya.\n" +
-            "2. **Kelembaban Optimal (RH)**: Ideal berada pada **65% - 70%** di suhu ruang teduh (20–25°C). Hindari paparan sinar matahari langsung.\n" +
-            "3. **Tips Tembakau Kering**: Jika tembakau terasa terlalu kering, letakkan sedikit kulit jeruk/apel bersih atau *hydrostone* basah di dalam toples selama 2–4 jam, tembakau akan kembali pulih dan aromatik!\n\n" +
-            "Ada varian tembakau yang ingin Kakak pesan hari ini?",
-        })
-      } else {
-        return NextResponse.json({
-          reply:
-            "🛡️ **Kebijakan Garansi & Retur Prawira Tobacco:**\n\n" +
-            "1. **Garansi 100% Produk Original & Fresh**: Kami menjamin kualitas tembakau dan perlengkapan tingwe sampai ke tangan Anda dalam kondisi prima.\n" +
-            "2. **Klaim Retur**: Komplain dapat diajukan maksimal **2x24 jam** sejak paket dinyatakan diterima oleh kurir, dengan menyertakan **video unboxing utuh tanpa jeda**.\n" +
-            "3. **Pengiriman**: Didukung oleh sistem ekspedisi Biteship (JNE, J&T, SiCepat, Anteraja) dengan nomor resi otomatis yang bisa dilacak langsung di website.",
-        })
-      }
-    }
-
-    // ── Scenario E: Specific Stock / Product Inquiry ──
-    const isStockInquiry =
-      textLower.includes("stok") ||
-      textLower.includes("stock") ||
-      textLower.includes("ready") ||
-      textLower.includes("ada") ||
-      textLower.includes("tersedia") ||
-      textLower.includes("sisa") ||
-      textLower.includes("punya") ||
-      textLower.includes("berapa") ||
-      textLower.includes("harga")
-
     if (matchedProducts.length > 0) {
-      if (matchedProducts.length === 1) {
-        const prod = matchedProducts[0]
-        const isReady = prod.in_stock > 0
-        const descText = prod.description && prod.description !== "bako" ? `\n• **Karakter**: ${prod.description}` : ""
-        const reply = isReady
-          ? `✅ Varian **${prod.name}** saat ini **READY STOCK** di gudang Prawira Tobacco!\n\n` +
-            `• **Harga**: ${formatRupiah(prod.price)} / pack\n` +
-            `• **Sisa Stok**: **${prod.in_stock} pack** siap kirim hari ini${descText}\n\n` +
-            `Kakak bisa langsung klik tombol **[Pesan Varian Ini]** di kartu bawah atau ketik langsung nama, no. WA, dan alamat untuk pemesanan & bayar via QRIS langsung di chat!`
-          : `⚠️ Mohon maaf Kak, varian **${prod.name}** saat ini sedang **HABIS** (Stok: 0). Kami sedang memproses restock dari supplier. Kakak bisa melihat varian serupa lainnya di kartu bawah!`
-
-        return NextResponse.json({
-          reply,
-          tool_type: "stock_card",
-          tool_data: {
-            items: [prod],
-            prompt_fill: `Saya mau pesan 1 pack ${prod.name}.\nNama: \nNo WA: 08\nAlamat: `,
-          },
-        })
-      }
-
       return NextResponse.json({
-        reply: `Berikut data ketersediaan stok real-time untuk varian yang relevan di gudang Prawira Tobacco:`,
+        reply: `Berikut varian yang relevan di katalog Prawira Tobacco:`,
         tool_type: "stock_card",
         tool_data: {
           items: matchedProducts.slice(0, 4),
         },
+        provider: "Local Catalog Fallback",
       })
     }
 
-    if (isStockInquiry && matchedProducts.length === 0) {
-      const popularKretek = allProducts.filter((p) =>
-        ["Linting Surya", "Linting Samsu", "Linting Marlong", "Barrack Whiskey Ice", "Linting Melon Ice"].includes(p.name)
-      )
-      return NextResponse.json({
-        reply:
-          "Mohon maaf Kak, varian yang Kakak tanyakan saat ini **belum tersedia** di katalog gudang Prawira Tobacco. 🙏\n\n" +
-          "Namun kami memiliki varian tembakau favorit nusantara yang saat ini **ready stock** dan sangat diminati:\n" +
-          "1. **Linting Surya** — Aroma cengkeh madu gurih mantap (Rp 24.000)\n" +
-          "2. **Linting Samsu** — Citarasa kretek klasik legendaris 234 (Rp 24.000)\n" +
-          "3. **Barrack Whiskey Ice** — Whiskey dingin menyegarkan (Rp 22.000)\n\n" +
-          "Kakak bisa melihat dan memesannya langsung dari kartu di bawah ini:",
-        tool_type: "stock_card",
-        tool_data: {
-          items: popularKretek.slice(0, 3),
-        },
-      })
-    }
-
-    // ── Scenario F: General Assistance / Default Tobacco Consultant ──
     return NextResponse.json({
       reply:
         "Halo Kak! Saya **Kurator Tembakau Prawira**. 🍂\n\n" +
-        "Saya dapat membantu Anda:\n" +
-        "1. **Konsultasi Rasa & Aroma** (Manis Buah, Dingin/Ice, Kretek Gurih, Mild).\n" +
-        "2. **Cek Stok Real-Time** katalog tembakau nusantara & aksesoris linting (papir, filter, cengkeh).\n" +
-        "3. **Pesan Langsung & Bayar QRIS**: Cukup sebutkan varian dan alamat Anda, saya akan buatkan pesanan dan kirimkan **QRIS resmi** di layar ini!\n\n" +
+        "Saya siap membantu Anda:\n" +
+        "• **Konsultasi rasa** (Manis Buah, Dingin/Ice, Kretek Gurih, Mild)\n" +
+        "• **Cek stok fisik real-time** dari gudang Prawira\n" +
+        "• **Beli banyak varian & checkout ongkir Biteship** langsung di dalam chat ini!\n\n" +
         "Varian tembakau apa yang sedang Kakak cari hari ini?",
       tool_type: "stock_card",
       tool_data: {
         items: allProducts.slice(0, 3),
       },
+      provider: "Local Catalog Fallback",
     })
   } catch (error: any) {
     console.error("🔥 Chat API Exception:", error)

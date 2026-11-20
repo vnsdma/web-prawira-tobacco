@@ -26,11 +26,20 @@ export interface SessionCartItem {
   weight?: number
 }
 
+export interface CitationItem {
+  document: string
+  page?: number
+  similarity?: number
+  preview?: string
+}
+
 export interface ChatMessage {
   id: string
   role: "user" | "assistant"
   content: string
   timestamp: string
+  citations?: CitationItem[]
+  provider?: string
   tool_type?:
     | "stock_card"
     | "order_review"
@@ -49,11 +58,11 @@ interface ChatInterfaceProps {
 }
 
 const SAMPLE_PROMPTS = [
-  "🍃 Rekomendasi tembakau manis & dingin",
   "📦 Cek stok Linting Surya",
-  "🍂 Tembakau kretek gurih mantap apa yang enak?",
-  "🛒 Mau pesan tembakau langsung di sini",
-  "❓ Cara simpan tembakau biar awet dan tidak kering",
+  "🍃 Rekomendasi tembakau manis dan dingin",
+  "🍂 Karakter kretek gurih mantap apa yang siap kirim?",
+  "❓ SOP cara simpan tembakau agar tidak kering",
+  "🛡️ Kebijakan garansi & retur barang rusak",
 ]
 
 export const ChatInterface: React.FC<ChatInterfaceProps> = ({ isOpen, onClose }) => {
@@ -72,6 +81,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ isOpen, onClose })
   const [input, setInput] = useState("")
   const [isSending, setIsSending] = useState(false)
   const [isOrderProcessing, setIsOrderProcessing] = useState(false)
+  const sessionIdRef = useRef<string>("session-" + Math.random().toString(36).substring(2, 9))
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -208,6 +218,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ isOpen, onClose })
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: "tambah produk lain",
+          session_id: sessionIdRef.current,
         }),
       })
       const data = await res.json()
@@ -218,6 +229,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ isOpen, onClose })
           data.reply ||
           "Tentu Kak! Berikut beberapa varian tembakau pilihan & perlengkapan tingwe favorit yang siap dikirim hari ini:",
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        citations: data.citations || [],
+        provider: data.provider,
         tool_type: "stock_card",
         tool_data: data.tool_data || {
           items: [],
@@ -301,6 +314,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ isOpen, onClose })
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: trimmed,
+          session_id: sessionIdRef.current,
           history: messages.slice(-6).map((m) => ({ role: m.role, content: m.content })),
         }),
       })
@@ -322,6 +336,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ isOpen, onClose })
         role: "assistant",
         content: data.reply || "Ada yang bisa saya bantu kembali seputar tembakau Prawira?",
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        citations: data.citations || [],
+        provider: data.provider,
         tool_type: data.tool_type,
         tool_data: data.tool_data,
       }
@@ -534,6 +550,44 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ isOpen, onClose })
                     )
                   })}
                 </div>
+
+                {/* Grounded Enterprise RAG Citations */}
+                {!isUser && m.citations && m.citations.length > 0 && (
+                  <div className="mt-2.5 pt-2 border-t border-border/60 text-[10.5px]">
+                    <div className="flex items-center gap-1.5 text-text-muted mb-1.5 font-semibold text-[10px]">
+                      <ShieldCheck size={11} className="text-emerald-500 flex-shrink-0" />
+                      <span>RAG Resmi (Katalog & SOP Prawira):</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {m.citations.map((c, i) => (
+                        <span
+                          key={i}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-raised border border-border text-[9.5px] text-text-secondary"
+                          title={c.preview || c.document}
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          <span className="font-medium truncate max-w-[170px]">
+                            {c.document.replace(/\.(pdf|md)$/i, "")}
+                          </span>
+                          {typeof c.similarity === "number" && (
+                            <span className="text-emerald-600 dark:text-emerald-400 font-mono text-[8.5px]">
+                              {Math.round(c.similarity * 100)}%
+                            </span>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* AI Provider Badge */}
+                {!isUser && m.provider && (
+                  <div className="mt-1.5 flex items-center justify-end">
+                    <span className="text-[9px] text-text-muted/70 font-mono">
+                      Powered by {m.provider}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Tool Cards (Stock, Cart Review, Checkout Container, QRIS, Success) */}
